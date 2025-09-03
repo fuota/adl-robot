@@ -1,20 +1,19 @@
-import { tva } from '@gluestack-ui/utils/nativewind-utils';
-import { isWeb } from '@gluestack-ui/utils/nativewind-utils';
-const baseStyle = isWeb ? 'flex flex-col relative z-0' : '';
+import { isWeb, tva } from "@gluestack-ui/utils/nativewind-utils";
+const baseStyle = isWeb ? "flex flex-col relative z-0" : "";
 
 export const cardStyle = tva({
   base: baseStyle,
   variants: {
     size: {
-      sm: 'p-3 rounded',
-      md: 'p-4 rounded-md',
-      lg: 'p-6 rounded-xl',
+      sm: "rounded p-3",
+      md: "rounded-md p-6",
+      lg: "rounded-xl p-8",
     },
     variant: {
-      elevated: 'bg-background-0',
-      outline: 'border border-outline-200 ',
-      ghost: 'rounded-none',
-      filled: 'bg-background-50',
+      elevated: "bg-background-0",
+      outline: "border border-outline-200 bg-white",
+      ghost: "rounded-none",
+      filled: "bg-background-50",
     },
   },
 });
