@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>adl_robot</name>
+  <version>0.0.1</version>
+  <description>ADL Robot project - Flask backend + Kinova ROS integration</description>
+
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <!-- Dependencies -->
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <!-- Runtime dependencies -->
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <!-- If you use Kinova SDK ROS package -->
+  <exec_depend>kortex_driver</exec_depend>
+</package>
