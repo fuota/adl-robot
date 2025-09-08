@@ -2,6 +2,7 @@ from flask import Flask
 from routes.objects import objects_bp
 from routes.tasks import tasks_bp
 from routes.voice import voice_bp
+from routes.camera import camera_bp
 
 app = Flask(__name__)
 
@@ -9,6 +10,7 @@ app = Flask(__name__)
 app.register_blueprint(objects_bp, url_prefix="/objects")
 app.register_blueprint(tasks_bp, url_prefix="/task")
 app.register_blueprint(voice_bp, url_prefix="/voice")
+app.register_blueprint(camera_bp, url_prefix="/camera")
 
 @app.route("/")
 def home():
