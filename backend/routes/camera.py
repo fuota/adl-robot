@@ -1,10 +1,11 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, render_template_string
 import cv2
 import numpy as np
 from services.camera_stream import camera
 import base64
 import io
 from PIL import Image
+import os
 
 camera_bp = Blueprint('camera', __name__)
 
@@ -167,3 +168,20 @@ def get_camera_status():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@camera_bp.route('/viewer')
+def stream_viewer():
+    """Serve the stream viewer HTML page"""
+    try:
+        # Read the HTML file
+        html_path = os.path.join(os.path.dirname(__file__), '..', 'stream_viewer.html')
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Replace the stream URL with the actual endpoint
+        stream_url = request.url_root + 'camera/stream'
+        html_content = html_content.replace('/camera/stream', stream_url)
+        
+        return html_content
+    except Exception as e:
+        return f"Error loading viewer: {str(e)}", 500
