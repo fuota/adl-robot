@@ -49,6 +49,7 @@ export default function TaskScreen() {
           source={{ uri: "http://10.226.122.218:5000/camera/viewer" }}
           style={{ backgroundColor: "#000" }}
           allowsInlineMediaPlayback={true}
+          
           mediaPlaybackRequiresUserAction={false}
           javaScriptEnabled={true}
           domStorageEnabled={true}
