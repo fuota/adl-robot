@@ -42,6 +42,7 @@ export default function TaskScreen() {
           <RadioIcon size={20} />
           <Heading size="xl">Live Camera</Heading>
         </View>
+
         <Image
           className="w-full flex-1 rounded-md"
           source={{
