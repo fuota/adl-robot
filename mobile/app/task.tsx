@@ -45,16 +45,22 @@ export default function TaskScreen() {
         </View>
 
         <WebView
-          className="w-full flex-1 rounded-md"
           source={{ uri: "http://10.226.122.218:5000/camera/viewer" }}
-          style={{ backgroundColor: "#000" }}
+          style={{
+            flex: 1,
+            backgroundColor: "#000",
+            borderRadius: 8,
+          }}
           allowsInlineMediaPlayback={true}
-          
           mediaPlaybackRequiresUserAction={false}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
-          scalesPageToFit={true}
+          scalesPageToFit={false}
+          bounces={false}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
           onError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
             console.warn("WebView error: ", nativeEvent);

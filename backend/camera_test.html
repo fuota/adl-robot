@@ -97,17 +97,18 @@
         <ol>
           <li>Make sure your RealSense camera is connected</li>
           <li>Start the Flask server: <code>python app.py</code></li>
-          <li>Click "Start Camera" to initialize the camera</li>
-          <li>View the live streams below</li>
+          <li>
+            The camera will automatically start and streams will begin below
+          </li>
+          <li>
+            Camera is always available and will auto-reconnect if disconnected
+          </li>
         </ol>
       </div>
 
       <div class="controls">
-        <button id="startBtn" onclick="startCamera()">Start Camera</button>
-        <button id="stopBtn" onclick="stopCamera()" disabled>
-          Stop Camera
-        </button>
         <button onclick="refreshStatus()">Refresh Status</button>
+        <button onclick="restartCamera()">Restart Camera</button>
       </div>
 
       <div id="status" class="status"></div>
@@ -121,7 +122,7 @@
             alt="Color Stream"
             style="display: none"
           />
-          <p id="colorStatus">Click "Start Camera" to begin streaming</p>
+          <p id="colorStatus">Camera is starting automatically...</p>
         </div>
         <div class="stream-box">
           <h3>Depth Stream</h3>
@@ -131,7 +132,7 @@
             alt="Depth Stream"
             style="display: none"
           />
-          <p id="depthStatus">Click "Start Camera" to begin streaming</p>
+          <p id="depthStatus">Camera is starting automatically...</p>
         </div>
       </div>
 
@@ -150,55 +151,27 @@
     </div>
 
     <script>
-      let cameraStarted = false;
-
       function updateStatus(message, isError = false) {
         const statusDiv = document.getElementById("status");
         statusDiv.textContent = message;
         statusDiv.className = `status ${isError ? "error" : "success"}`;
       }
 
-      async function startCamera() {
-        try {
-          updateStatus("Starting camera...");
-
-          const response = await fetch("/camera/start", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-
-          const result = await response.json();
-
-          if (response.ok) {
-            updateStatus("Camera started successfully!");
-            cameraStarted = true;
-
-            // Start streams
-            document.getElementById("colorStream").src = "/camera/stream";
-            document.getElementById("depthStream").src = "/camera/depth-stream";
-            document.getElementById("colorStream").style.display = "block";
-            document.getElementById("depthStream").style.display = "block";
-            document.getElementById("colorStatus").style.display = "none";
-            document.getElementById("depthStatus").style.display = "none";
-
-            // Update button states
-            document.getElementById("startBtn").disabled = true;
-            document.getElementById("stopBtn").disabled = false;
-          } else {
-            updateStatus(`Error: ${result.error}`, true);
-          }
-        } catch (error) {
-          updateStatus(`Error: ${error.message}`, true);
-        }
+      function startStreams() {
+        // Start streams automatically
+        document.getElementById("colorStream").src = "/camera/stream";
+        document.getElementById("depthStream").src = "/camera/depth-stream";
+        document.getElementById("colorStream").style.display = "block";
+        document.getElementById("depthStream").style.display = "block";
+        document.getElementById("colorStatus").style.display = "none";
+        document.getElementById("depthStatus").style.display = "none";
       }
 
-      async function stopCamera() {
+      async function restartCamera() {
         try {
-          updateStatus("Stopping camera...");
+          updateStatus("Restarting camera...");
 
-          const response = await fetch("/camera/stop", {
+          const response = await fetch("/camera/restart", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -208,20 +181,9 @@
           const result = await response.json();
 
           if (response.ok) {
-            updateStatus("Camera stopped successfully!");
-            cameraStarted = false;
-
-            // Stop streams
-            document.getElementById("colorStream").src = "";
-            document.getElementById("depthStream").src = "";
-            document.getElementById("colorStream").style.display = "none";
-            document.getElementById("depthStream").style.display = "none";
-            document.getElementById("colorStatus").style.display = "block";
-            document.getElementById("depthStatus").style.display = "block";
-
-            // Update button states
-            document.getElementById("startBtn").disabled = false;
-            document.getElementById("stopBtn").disabled = true;
+            updateStatus("Camera restarted successfully!");
+            // Restart streams
+            startStreams();
           } else {
             updateStatus(`Error: ${result.error}`, true);
           }
@@ -236,18 +198,25 @@
           const status = await response.json();
 
           if (status.connected) {
-            updateStatus(`Camera Status: Connected and Streaming`);
+            updateStatus(
+              `Camera Status: Connected and Streaming (Always Available)`
+            );
           } else {
-            updateStatus(`Camera Status: Not Connected`, true);
+            updateStatus(
+              `Camera Status: Not Connected - Will Auto-Reconnect`,
+              true
+            );
           }
         } catch (error) {
           updateStatus(`Error checking status: ${error.message}`, true);
         }
       }
 
-      // Check status on page load
+      // Check status and start streams on page load
       window.onload = function () {
         refreshStatus();
+        // Start streams automatically since camera is always available
+        setTimeout(startStreams, 1000); // Small delay to ensure camera is ready
       };
     </script>
   </body>

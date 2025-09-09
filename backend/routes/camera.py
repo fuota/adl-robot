@@ -1,10 +1,7 @@
-from flask import Blueprint, Response, jsonify, request, render_template_string
+from flask import Blueprint, Response, jsonify, request
 import cv2
-import numpy as np
 from services.camera_stream import camera
 import base64
-import io
-from PIL import Image
 import os
 
 camera_bp = Blueprint('camera', __name__)
@@ -119,53 +116,6 @@ def get_depth_frame():
             "timestamp": camera.last_frame_time
         })
         
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@camera_bp.route('/info')
-def get_camera_info():
-    """Get camera information and status"""
-    try:
-        info = camera.get_camera_info()
-        return jsonify(info)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@camera_bp.route('/start', methods=['POST'])
-def start_camera():
-    """Start the camera streaming"""
-    try:
-        if camera.is_connected():
-            return jsonify({"message": "Camera already running", "status": "running"})
-        
-        success = camera.initialize()
-        if success:
-            return jsonify({"message": "Camera started successfully", "status": "started"})
-        else:
-            return jsonify({"error": "Failed to start camera"}), 500
-            
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@camera_bp.route('/stop', methods=['POST'])
-def stop_camera():
-    """Stop the camera streaming"""
-    try:
-        camera.stop()
-        return jsonify({"message": "Camera stopped successfully", "status": "stopped"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@camera_bp.route('/status')
-def get_camera_status():
-    """Get camera connection status"""
-    try:
-        is_connected = camera.is_connected()
-        return jsonify({
-            "connected": is_connected,
-            "streaming": is_connected,
-            "last_frame_time": camera.last_frame_time if is_connected else None
-        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

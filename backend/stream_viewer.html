@@ -5,37 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Camera Stream</title>
     <style>
-      body {
+      * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
         background-color: #000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
         overflow: hidden;
       }
       .stream-container {
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         display: flex;
         justify-content: center;
         align-items: center;
+        background-color: #000;
       }
       .stream-image {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
       }
       .loading {
         color: white;
         font-family: Arial, sans-serif;
         text-align: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
       }
       .error {
         color: #ff6b6b;
         font-family: Arial, sans-serif;
         text-align: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
       }
     </style>
   </head>

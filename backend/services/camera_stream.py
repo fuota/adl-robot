@@ -14,10 +14,16 @@ class RealSenseCamera:
         self.color_frame = None
         self.depth_frame = None
         self.last_frame_time = 0
+        # Auto-initialize camera on instantiation
+        self.initialize()
         
     def initialize(self) -> bool:
         """Initialize the RealSense camera pipeline"""
         try:
+            # Clean up existing pipeline if any
+            if self.pipeline and self.is_streaming:
+                self.pipeline.stop()
+            
             self.pipeline = rs.pipeline()
             self.config = rs.config()
             
@@ -33,17 +39,23 @@ class RealSenseCamera:
             
         except Exception as e:
             print(f"Failed to initialize RealSense camera: {e}")
+            self.is_streaming = False
             return False
     
     def get_frames(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """Get the latest color and depth frames"""
+        # Try to reconnect if not streaming
         if not self.is_streaming or not self.pipeline:
-            return None, None
+            print("Camera not streaming, attempting to reconnect...")
+            if self.initialize():
+                print("Camera reconnected successfully")
+            else:
+                return None, None
             
         try:
             with self.lock:
-                # Wait for frames
-                frames = self.pipeline.wait_for_frames()
+                # Wait for frames with timeout
+                frames = self.pipeline.wait_for_frames(timeout_ms=1000)
                 
                 # Get color and depth frames
                 color_frame = frames.get_color_frame()
@@ -64,6 +76,8 @@ class RealSenseCamera:
                 
         except Exception as e:
             print(f"Error getting frames: {e}")
+            # Mark as not streaming and try to reconnect next time
+            self.is_streaming = False
             return None, None
     
     def get_color_frame(self) -> Optional[np.ndarray]:
@@ -86,34 +100,5 @@ class RealSenseCamera:
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_frame, alpha=0.03), cv2.COLORMAP_JET)
         return depth_colormap
     
-    def stop(self):
-        """Stop the camera streaming"""
-        if self.pipeline and self.is_streaming:
-            self.pipeline.stop()
-            self.is_streaming = False
-            print("RealSense camera stopped")
-    
-    def is_connected(self) -> bool:
-        """Check if camera is connected and streaming"""
-        return self.is_streaming and self.pipeline is not None
-    
-    def get_camera_info(self) -> dict:
-        """Get camera information"""
-        if not self.is_connected():
-            return {"connected": False}
-        
-        try:
-            # Get device info
-            device = self.pipeline.get_active_profile().get_device()
-            return {
-                "connected": True,
-                "device_name": device.get_info(rs.camera_info.name),
-                "serial_number": device.get_info(rs.camera_info.serial_number),
-                "firmware_version": device.get_info(rs.camera_info.firmware_version),
-                "last_frame_time": self.last_frame_time
-            }
-        except Exception as e:
-            return {"connected": False, "error": str(e)}
-
 # Global camera instance
 camera = RealSenseCamera()
