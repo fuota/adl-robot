@@ -1,0 +1,6 @@
+numpy
+opencv-contrib-python
+opencv-python
+scipy
+setuptools
+transforms3d

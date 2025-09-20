@@ -1,0 +1,23 @@
+[1.001s] Invoking command in '/home/tripham/adl-robot/ros2_ws/src/adl_robot': PYTHONPATH=/home/tripham/adl-robot/ros2_ws/build/adl_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/adl_robot build --build-base /home/tripham/adl-robot/ros2_ws/build/adl_robot/build install --record /home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log --single-version-externally-managed install_data
+[1.357s] running egg_info
+[1.358s] writing ../../build/adl_robot/adl_robot.egg-info/PKG-INFO
+[1.359s] writing dependency_links to ../../build/adl_robot/adl_robot.egg-info/dependency_links.txt
+[1.360s] writing entry points to ../../build/adl_robot/adl_robot.egg-info/entry_points.txt
+[1.360s] writing requirements to ../../build/adl_robot/adl_robot.egg-info/requires.txt
+[1.360s] writing top-level names to ../../build/adl_robot/adl_robot.egg-info/top_level.txt
+[1.361s] reading manifest file '../../build/adl_robot/adl_robot.egg-info/SOURCES.txt'
+[1.363s] writing manifest file '../../build/adl_robot/adl_robot.egg-info/SOURCES.txt'
+[1.363s] running build
+[1.363s] running install
+[1.364s] running install_data
+[1.364s] copying launch/aruco_detection_only.launch.py -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch
+[1.364s] running install_egg_info
+[1.368s] removing '/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info' (and everything under it)
+[1.369s] Copying ../../build/adl_robot/adl_robot.egg-info to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info
+[1.372s] running install_scripts
+[1.406s] Installing adl_coordinator script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.406s] Installing aruco_detector script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.406s] Installing kinova_controller script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.407s] Installing object_pickup_service script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.407s] writing list of installed files to '/home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log'
+[1.461s] Invoked command in '/home/tripham/adl-robot/ros2_ws/src/adl_robot' returned '0': PYTHONPATH=/home/tripham/adl-robot/ros2_ws/build/adl_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/adl_robot build --build-base /home/tripham/adl-robot/ros2_ws/build/adl_robot/build install --record /home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log --single-version-externally-managed install_data

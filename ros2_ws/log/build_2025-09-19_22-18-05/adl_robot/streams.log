@@ -1,0 +1,33 @@
+[1.487s] Invoking command in '/home/tripham/adl-robot/ros2_ws/src/adl_robot': PYTHONPATH=/home/tripham/adl-robot/ros2_ws/build/adl_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/adl_robot build --build-base /home/tripham/adl-robot/ros2_ws/build/adl_robot/build install --record /home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log --single-version-externally-managed install_data
+[1.816s] running egg_info
+[1.817s] creating ../../build/adl_robot/adl_robot.egg-info
+[1.818s] writing ../../build/adl_robot/adl_robot.egg-info/PKG-INFO
+[1.818s] writing dependency_links to ../../build/adl_robot/adl_robot.egg-info/dependency_links.txt
+[1.819s] writing entry points to ../../build/adl_robot/adl_robot.egg-info/entry_points.txt
+[1.819s] writing requirements to ../../build/adl_robot/adl_robot.egg-info/requires.txt
+[1.820s] writing top-level names to ../../build/adl_robot/adl_robot.egg-info/top_level.txt
+[1.820s] writing manifest file '../../build/adl_robot/adl_robot.egg-info/SOURCES.txt'
+[1.821s] reading manifest file '../../build/adl_robot/adl_robot.egg-info/SOURCES.txt'
+[1.823s] writing manifest file '../../build/adl_robot/adl_robot.egg-info/SOURCES.txt'
+[1.824s] running build
+[1.824s] running install
+[1.829s] running install_data
+[1.829s] creating /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/ament_index
+[1.829s] creating /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/ament_index/resource_index
+[1.829s] creating /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/ament_index/resource_index/packages
+[1.829s] copying resource/adl_robot -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/ament_index/resource_index/packages
+[1.829s] copying package.xml -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot
+[1.829s] creating /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch
+[1.829s] copying launch/adl_robot.launch.py -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch
+[1.830s] copying launch/aruco_detection_only.launch.py -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch
+[1.830s] creating /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/config
+[1.831s] copying config/adl_robot_config.yaml -> /home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/config
+[1.831s] running install_egg_info
+[1.836s] Copying ../../build/adl_robot/adl_robot.egg-info to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info
+[1.839s] running install_scripts
+[1.871s] Installing adl_coordinator script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.871s] Installing aruco_detector script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.872s] Installing kinova_controller script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.872s] Installing object_pickup_service script to /home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot
+[1.872s] writing list of installed files to '/home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log'
+[1.911s] Invoked command in '/home/tripham/adl-robot/ros2_ws/src/adl_robot' returned '0': PYTHONPATH=/home/tripham/adl-robot/ros2_ws/build/adl_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/adl_robot build --build-base /home/tripham/adl-robot/ros2_ws/build/adl_robot/build install --record /home/tripham/adl-robot/ros2_ws/build/adl_robot/install.log --single-version-externally-managed install_data

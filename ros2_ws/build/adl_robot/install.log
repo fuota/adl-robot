@@ -1,0 +1,16 @@
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/share/ament_index/resource_index/packages/adl_robot
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/package.xml
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch/adl_robot.launch.py
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/launch/aruco_detection_only.launch.py
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/share/adl_robot/config/adl_robot_config.yaml
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/entry_points.txt
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/zip-safe
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/dependency_links.txt
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/SOURCES.txt
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/PKG-INFO
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/requires.txt
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/python3.10/site-packages/adl_robot-0.0.0-py3.10.egg-info/top_level.txt
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot/adl_coordinator
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot/aruco_detector
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot/kinova_controller
+/home/tripham/adl-robot/ros2_ws/install/adl_robot/lib/adl_robot/object_pickup_service

@@ -1,0 +1,6 @@
+[console_scripts]
+adl_coordinator = adl_robot.adl_coordinator:main
+aruco_detector = adl_robot.aruco_detector:main
+kinova_controller = adl_robot.kinova_controller:main
+object_pickup_service = adl_robot.object_pickup_service:main
+

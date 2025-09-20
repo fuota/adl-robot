@@ -1,0 +1,94 @@
+# ADL Robot Configuration File
+# ROS2 parameters for all ADL robot nodes
+
+# ArUco Detector Node Parameters
+aruco_detector:
+  ros__parameters:
+    aruco_dict_type: "DICT_4X4_250"  # ArUco dictionary type
+    marker_size: 0.05  # Size of ArUco markers in meters (5cm)
+    camera_frame: "camera_color_optical_frame"
+    base_frame: "base_link"
+    publish_rate: 10.0  # Hz
+    
+    # Detection parameters
+    detection_confidence_threshold: 0.8
+    max_detection_distance: 2.0  # meters
+    min_detection_distance: 0.1  # meters
+
+# Kinova Controller Node Parameters  
+kinova_controller:
+  ros__parameters:
+    arm_name: "my_gen3"
+    gripper_joint_name: "gripper_finger1_joint"
+    planning_frame: "base_link"
+    end_effector_frame: "end_effector_link"
+    
+    # Motion parameters
+    joint_velocity_limit: 0.5  # rad/s
+    joint_acceleration_limit: 0.3  # rad/s²
+    cartesian_velocity_limit: 0.1  # m/s
+    
+    # Safety parameters
+    collision_check_enabled: true
+    workspace_limits:
+      x_min: 0.1
+      x_max: 0.9
+      y_min: -0.6
+      y_max: 0.6
+      z_min: 0.05
+      z_max: 1.2
+
+# Object Pickup Service Parameters
+object_pickup_service:
+  ros__parameters:
+    camera_frame: "camera_color_optical_frame"
+    base_frame: "base_link"
+    detection_timeout: 5.0  # seconds
+    
+    # Grasp parameters
+    pre_grasp_height_offset: 0.15  # meters above object
+    grasp_approach_speed: 0.05  # m/s
+    grasp_force_threshold: 10.0  # Newtons
+    
+    # Safety parameters
+    min_grasp_width: 0.01  # meters
+    max_grasp_width: 0.08  # meters
+
+# ADL Coordinator Parameters
+adl_coordinator:
+  ros__parameters:
+    base_frame: "base_link"
+    service_timeout: 30.0  # seconds
+    
+    # Task execution parameters
+    inter_step_delay: 2.0  # seconds between task steps
+    max_retry_attempts: 3
+    
+    # Predefined locations (x, y, z in base_link frame)
+    placement_locations:
+      shelf_high: [0.6, -0.3, 0.8]
+      shelf_middle: [0.6, -0.3, 0.6]
+      shelf_low: [0.6, -0.3, 0.4]
+      table_left: [0.5, 0.3, 0.3]
+      table_center: [0.5, 0.0, 0.3]
+      table_right: [0.5, -0.3, 0.3]
+      drawer: [0.4, 0.2, 0.2]
+
+# Object Type Mapping (ArUco ID -> Object Type)
+object_mapping:
+  0: "book"
+  1: "water_bottle"
+  2: "cup"
+  3: "bowl"
+  4: "phone"
+  5: "remote"
+  6: "cereal_box"
+  7: "milk_bottle"
+  8: "plate"
+  9: "spoon"
+  10: "knife"
+  11: "fork"
+  12: "napkin"
+  13: "glass"
+  14: "tablet"
+  15: "pen"

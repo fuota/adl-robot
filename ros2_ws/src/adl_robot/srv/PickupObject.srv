@@ -1,0 +1,15 @@
+# PickupObject.srv
+# Service for picking up detected objects
+
+# Request
+int32 marker_id                # ArUco marker ID of object to pickup
+string object_type             # Type of object (optional, for validation)
+geometry_msgs/PoseStamped target_pose  # 3D pose of object to pickup
+bool use_precise_grasp         # Whether to use precise grasping approach
+
+---
+
+# Response
+bool success                   # Whether pickup was successful
+string message                 # Status message or error description
+float32 execution_time         # Time taken for pickup operation

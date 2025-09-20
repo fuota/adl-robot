@@ -1,0 +1,13 @@
+# PlaceObject.srv
+# Service for placing objects
+
+# Request
+geometry_msgs/PoseStamped target_pose  # Where to place the object
+bool release_object           # Whether to release the gripper after placing
+
+---
+
+# Response
+bool success                  # Whether placement was successful
+string message               # Status message or error description
+float32 execution_time       # Time taken for placement operation
