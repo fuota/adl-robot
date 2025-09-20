@@ -1,3 +1,4 @@
+import CameraStream from "@/components/CameraStream";
 import TaskStep from "@/components/tasks/TaskStep";
 import {
   Accordion,
@@ -24,7 +25,7 @@ import {
   SlidersHorizontalIcon,
   SquareIcon,
 } from "lucide-react-native";
-import { FlatList, Image, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const mockSteps = [
@@ -43,12 +44,9 @@ export default function TaskScreen() {
           <Heading size="xl">Live Camera</Heading>
         </View>
 
-        <Image
-          className="w-full flex-1 rounded-md"
-          source={{
-            uri: "https://www.eatingwell.com/thmb/qv2DFL4ty7D_9GV7pGFi7YqyxMY=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/his-Viral-Dietitian-Approved-Hack-Will-Make-Your-Cereal-More-Filling-72441aef7e7a4ad9a63fac7c095541fc.jpg",
-          }}
-        />
+        <View className="flex-1">
+          <CameraStream />
+        </View>
       </Card>
 
       <View className="flex-1 gap-4">
