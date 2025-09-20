@@ -1,4 +1,5 @@
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
+import { RosProvider } from "@/contexts/RosContext";
 import "@/global.css";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
@@ -8,7 +9,7 @@ import { useEffect } from "react";
 
 export {
   // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+  ErrorBoundary
 } from "expo-router";
 
 SplashScreen.preventAutoHideAsync();
@@ -36,7 +37,9 @@ export default function RootLayout() {
 function RootLayoutNav() {
   return (
     <GluestackUIProvider>
-      <Slot />
+      <RosProvider>
+        <Slot />
+      </RosProvider>
     </GluestackUIProvider>
   );
 }

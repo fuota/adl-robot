@@ -1,3 +1,4 @@
+import CameraStream from "@/components/CameraStream";
 import TaskStep from "@/components/tasks/TaskStep";
 import {
   Accordion,
@@ -26,7 +27,6 @@ import {
 } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 
 const mockSteps = [
   { title: "Step 1", status: "completed" },
@@ -44,32 +44,9 @@ export default function TaskScreen() {
           <Heading size="xl">Live Camera</Heading>
         </View>
 
-        <WebView
-          source={{ uri: "http://10.226.122.218:5000/camera/viewer" }}
-          style={{
-            flex: 1,
-            backgroundColor: "#000",
-            borderRadius: 8,
-          }}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          scalesPageToFit={false}
-          bounces={false}
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn("WebView error: ", nativeEvent);
-          }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn("WebView HTTP error: ", nativeEvent);
-          }}
-        />
+        <View className="flex-1">
+          <CameraStream />
+        </View>
       </Card>
 
       <View className="flex-1 gap-4">
