@@ -6,9 +6,9 @@ import React from "react";
 import { FlatList, Pressable, View } from "react-native";
 
 const mockTasks = [
-  { id: "1", title: "Task 1", description: "Description for Task 1" },
-  { id: "2", title: "Task 2", description: "Description for Task 2" },
-  { id: "3", title: "Task 3", description: "Description for Task 3" },
+  { id: "1", title: "Prepare Medicine", description: "Prepare the medicine for the patient." },
+  { id: "2", title: "Set up the table", description: "Set the table for the meal." },
+  { id: "3", title: "Organize books", description: "Organize the books on the shelf." },
 ];
 
 export default function Home() {

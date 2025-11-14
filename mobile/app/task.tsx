@@ -1,14 +1,5 @@
 import CameraStream from "@/components/CameraStream";
 import TaskStep from "@/components/tasks/TaskStep";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionHeader,
-  AccordionIcon,
-  AccordionItem,
-  AccordionTitleText,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge, BadgeText } from "@/components/ui/badge";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,8 +8,6 @@ import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
 import {
   ActivityIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   MicIcon,
   PauseIcon,
   RadioIcon,
@@ -29,9 +18,10 @@ import { FlatList, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const mockSteps = [
-  { title: "Step 1", status: "completed" },
-  { title: "Step 2", status: "in-progress" },
-  { title: "Step 3", status: "not-started" },
+  { title: "Pour water and place water bottle", status: "in-progress" },
+  { title: "Place cup", status: "not-started" },
+  { title: "Place plate", status: "not-started" },
+  { title: "Place and pour medicine bottle", status: "not-started" },
 ] as const;
 
 export default function TaskScreen() {
@@ -63,50 +53,26 @@ export default function TaskScreen() {
 
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="font-heading text-lg">
-              Put the cup on the shelf
+              Prepare medicine
             </Text>
-            <Text className="font-heading text-sm">40%</Text>
+            <Text className="font-heading text-sm">100%</Text>
           </View>
 
-          <Progress value={40} orientation="horizontal" className="mb-2">
+          <Progress value={100} orientation="horizontal" className="mb-2">
             <ProgressFilledTrack />
           </Progress>
-          <Text className="mb-6 font-heading">Step 2 of 3: Grasping book</Text>
+          <Text className="mb-6 font-heading">Step 1 of 4: Pour water and place water bottle</Text>
 
-          <Accordion isCollapsible>
-            <AccordionItem value="all-steps">
-              <AccordionHeader>
-                <AccordionTrigger className="p-0">
-                  {({ isExpanded }: { isExpanded: boolean }) => {
-                    return (
-                      <>
-                        <AccordionTitleText className="text-lg">
-                          All Steps (2/3)
-                        </AccordionTitleText>
-
-                        {isExpanded ? (
-                          <AccordionIcon as={ChevronUpIcon} className="ml-3" />
-                        ) : (
-                          <AccordionIcon
-                            as={ChevronDownIcon}
-                            className="ml-3"
-                          />
-                        )}
-                      </>
-                    );
-                  }}
-                </AccordionTrigger>
-              </AccordionHeader>
-              <AccordionContent className="p-0">
-                <FlatList
-                  data={mockSteps}
-                  keyExtractor={(item) => item.title}
-                  renderItem={({ item }) => <TaskStep {...item} />}
-                  ItemSeparatorComponent={() => <View className="h-1" />}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          {/* Steps Section - Always Visible */}
+          <View className="mb-4">
+            <Text className="text-lg mb-3">All Steps (1/4)</Text>
+            <FlatList
+              data={mockSteps}
+              keyExtractor={(item) => item.title}
+              renderItem={({ item }) => <TaskStep {...item} />}
+              ItemSeparatorComponent={() => <View className="h-1" />}
+            />
+          </View>
         </Card>
 
         <Card variant="outline">
