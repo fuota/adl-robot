@@ -1,5 +1,6 @@
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { RosProvider } from "@/contexts/RosContext";
+import { TaskProvider } from "@/contexts/TaskContext";
 import "@/global.css";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
@@ -38,7 +39,9 @@ function RootLayoutNav() {
   return (
     <GluestackUIProvider>
       <RosProvider>
-        <Slot />
+        <TaskProvider>
+          <Slot />
+        </TaskProvider>
       </RosProvider>
     </GluestackUIProvider>
   );

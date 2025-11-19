@@ -1,28 +1,43 @@
 import React, { createContext, PropsWithChildren, useContext, useEffect, useState } from 'react';
-import ROSLIB from 'roslib';
+import { Platform } from 'react-native';
 
 interface RosContextProps {
-  ros: ROSLIB.Ros;
+  ros: any;
   connected: boolean;
 }
 
 const RosContext = createContext<RosContextProps | null>(null);
 
 export const RosProvider = ({ children }: PropsWithChildren) => {
-  const [ros, setRos] = useState<ROSLIB.Ros | null>(null);
+  const isNative = Platform.OS !== 'web';
+
+  // Minimal synchronous stub so the provider can render immediately on native
+  // platforms (Expo Go on iPad) without attempting any network connections.
+  const nativeStub = {
+    on: (_: string, __?: any) => {},
+    close: () => {},
+  };
+
+  const [ros, setRos] = useState<any>(nativeStub);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const rosConnection = new ROSLIB.Ros({
-      url: 'ws://192.168.0.217:9090'
-    });
+    // Only initialize the real ROS websocket on web builds. Native builds
+    // keep the synchronous stub so UI renders immediately in Expo Go.
+    if (isNative) return;
+
+    // Dynamically require roslib so native bundlers don't include it.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ROSLIB = require('roslib');
+
+    const rosConnection = new ROSLIB.Ros({ url: 'ws://192.168.0.217:9090' });
 
     rosConnection.on('connection', () => {
       console.log('Connected to ROS bridge');
       setConnected(true);
     });
 
-    rosConnection.on('error', (err) => {
+    rosConnection.on('error', (err: any) => {
       console.error('ROS bridge error:', err);
       setConnected(false);
     });
@@ -35,12 +50,13 @@ export const RosProvider = ({ children }: PropsWithChildren) => {
     setRos(rosConnection);
 
     return () => {
-      rosConnection.close();
+      try {
+        rosConnection.close();
+      } catch (_e) {
+        // ignore
+      }
     };
-  }, []);
-
-  // Only render children when ROS is initialized
-  if (!ros) return null;
+  }, [isNative]);
 
   return (
     <RosContext.Provider value={{ ros, connected }}>
