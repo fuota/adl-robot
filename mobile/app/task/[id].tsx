@@ -1,14 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
+import CameraStream from "@/components/CameraStream";
 import TaskStep from "@/components/tasks/TaskStep";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionHeader,
-  AccordionIcon,
-  AccordionItem,
-  AccordionTitleText,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge, BadgeText } from "@/components/ui/badge";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,8 +9,6 @@ import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
 import {
   ActivityIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   MicIcon,
   PauseIcon,
   RadioIcon,
@@ -27,25 +17,57 @@ import {
 } from "lucide-react-native";
 import { FlatList, View, Pressable, DeviceEventEmitter, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
-const initialSteps = [
-  { title: "Pick up the book", status: "not-started" },
-  { title: "Place book appropriately", status: "not-started" },
-  { title: "Pick up disarray objects", status: "not-started" },
-  { title: "Arrange the objects neatly", status: "not-started" },
-] as const;
+// Task definitions
+const taskDefinitions: Record<string, { title: string; steps: readonly { title: string; status: string }[] }> = {
+  "1": {
+    title: "Prepare medicine",
+    steps: [
+      { title: "Pour water and place water bottle", status: "not-started" },
+      { title: "Place cup", status: "not-started" },
+      { title: "Place plate", status: "not-started" },
+      { title: "Place and pour medicine bottle", status: "not-started" },
+    ],
+  },
+  "2": {
+    title: "Set up the table",
+    steps: [
+      { title: "Arrange plate on table", status: "not-started" },
+      { title: "Arrange spoon on table", status: "not-started" },
+      { title: "Arrange milk on the table", status: "not-started" },
+      { title: "Arrange glass on the table", status: "not-started" },
+    ],
+  },
+  "3": {
+    title: "Organize books",
+    steps: [
+      { title: "Pick up the book", status: "not-started" },
+      { title: "Place book appropriately", status: "not-started" },
+      { title: "Pick up disarray objects", status: "not-started" },
+      { title: "Arrange the objects neatly", status: "not-started" },
+    ],
+  },
+};
 
-export default function Task3Screen() {
+export default function TaskScreen() {
   const router = useRouter();
-  const taskTitle = "Organize Books";
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const taskId = id || "1";
+  
+  const taskDef = taskDefinitions[taskId] || taskDefinitions["1"];
+  const taskTitle = taskDef.title;
+  const initialSteps = taskDef.steps;
 
   type StepStatus = "completed" | "in-progress" | "not-started";
-  const [steps, setSteps] = useState(() => initialSteps.map((s) => ({ title: s.title, status: s.status })) as { title: string; status: StepStatus }[]);
+  const [steps, setSteps] = useState(() => 
+    initialSteps.map((s) => ({ title: s.title, status: s.status })) as { title: string; status: StepStatus }[]
+  );
 
   useEffect(() => {
+    // Initialize first step as in-progress
     setSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : s.status })));
-  }, []);
+  }, [taskId]);
 
   const completedCount = steps.filter((s) => s.status === "completed").length;
   const inProgressCount = steps.filter((s) => s.status === "in-progress").length;
@@ -53,25 +75,60 @@ export default function Task3Screen() {
   const currentIndex = steps.findIndex((s) => s.status === "in-progress");
   const progress = Math.round((completedCount / total) * 100);
 
-  const markStepComplete = (index: number) => {
-    setSteps((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      if (next[index]) next[index].status = "completed";
-      if (next[index + 1]) next[index + 1].status = "in-progress";
-      return next;
-    });
-  };
-
   const advanceStep = () => {
     const idx = steps.findIndex((s) => s.status === "in-progress");
     if (idx === -1) {
       setSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : s.status })));
       return;
     }
-    markStepComplete(idx);
+    // Mark current step as completed and next as in-progress
+    setSteps((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      if (next[idx]) next[idx].status = "completed";
+      if (next[idx + 1]) next[idx + 1].status = "in-progress";
+      return next;
+    });
   };
 
-  // Speech support: safe require native module
+  useEffect(() => {
+    const handler = (payload: any) => {
+      const p = payload?.detail ?? payload;
+      if (!p) return;
+      if (p.taskId && String(p.taskId) !== taskId) return;
+      if (p.action === "advance") {
+        advanceStep();
+        return;
+      }
+      if (typeof p.stepIndex === "number") {
+        setSteps((prev) => {
+          const next = prev.map((s) => ({ ...s }));
+          if (next[p.stepIndex]) next[p.stepIndex].status = p.status || next[p.stepIndex].status;
+          return next;
+        });
+      }
+    };
+
+    let sub: any = null;
+    try {
+      sub = DeviceEventEmitter.addListener("taskStepUpdate", handler);
+    } catch (e) {
+      sub = null;
+    }
+
+    const webHandler = (e: any) => handler(e.detail ?? e);
+    if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("taskStepUpdate", webHandler);
+    }
+
+    return () => {
+      sub && sub.remove && sub.remove();
+      if (typeof window !== "undefined" && window.removeEventListener) {
+        window.removeEventListener("taskStepUpdate", webHandler);
+      }
+    };
+  }, [taskId]);
+
+  // Speech support for task 3 (optional - can be added to all tasks if needed)
   let NativeVoice: any = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -170,40 +227,6 @@ export default function Task3Screen() {
     setListening(false);
   };
 
-  useEffect(() => {
-    const handler = (payload: any) => {
-      const p = payload?.detail ?? payload;
-      if (!p) return;
-      if (p.taskId && String(p.taskId) !== "3") return;
-      if (p.action === "advance") {
-        advanceStep();
-        return;
-      }
-      if (typeof p.stepIndex === "number") {
-        setSteps((prev) => {
-          const next = prev.map((s) => ({ ...s }));
-          if (next[p.stepIndex]) next[p.stepIndex].status = p.status || next[p.stepIndex].status;
-          return next;
-        });
-      }
-    };
-
-    let sub: any = null;
-    try {
-      sub = DeviceEventEmitter.addListener("taskStepUpdate", handler);
-    } catch (e) {
-      sub = null;
-    }
-
-    const webHandler = (e: any) => handler(e.detail ?? e);
-    if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("taskStepUpdate", webHandler);
-
-    return () => {
-      sub && sub.remove && sub.remove();
-      if (typeof window !== "undefined" && window.removeEventListener) window.removeEventListener("taskStepUpdate", webHandler);
-    };
-  }, []);
-
   return (
     <SafeAreaView className="flex-1 flex-row gap-4 bg-gray-50 px-5 py-5">
       <Card variant="outline" className="w-8/12">
@@ -212,8 +235,8 @@ export default function Task3Screen() {
           <Heading size="xl">Live Camera</Heading>
         </View>
 
-        <View className="w-full flex-1 rounded-md bg-gray-200 items-center justify-center">
-          <Text className="text-gray-500">Live camera feed will appear here</Text>
+        <View className="flex-1">
+          <CameraStream />
         </View>
       </Card>
 
@@ -242,39 +265,18 @@ export default function Task3Screen() {
           </Progress>
           <Text className="mb-6 font-heading">Step {Math.min(currentIndex + 1, total)} of {total}: {steps[currentIndex]?.title ?? steps[0].title}</Text>
 
-          <Accordion isCollapsible>
-            <AccordionItem value="all-steps">
-              <AccordionHeader>
-                <AccordionTrigger className="p-0">
-                  {({ isExpanded }: { isExpanded: boolean }) => {
-                    return (
-                      <>
-                        <AccordionTitleText className="text-lg">All Steps ({completedCount}/{total})</AccordionTitleText>
-
-                        {isExpanded ? (
-                          <AccordionIcon as={ChevronUpIcon} className="ml-3" />
-                        ) : (
-                          <AccordionIcon as={ChevronDownIcon} className="ml-3" />
-                        )}
-                      </>
-                    );
-                  }}
-                </AccordionTrigger>
-              </AccordionHeader>
-              <AccordionContent className="p-0">
-                <FlatList
-                  data={steps}
-                  keyExtractor={(item) => item.title}
-                  renderItem={({ item, index }) => (
-                    <Pressable onPress={() => markStepComplete(index)}>
-                      <TaskStep {...item} />
-                    </Pressable>
-                  )}
-                  ItemSeparatorComponent={() => <View className="h-1" />}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          {/* Steps Section - Always Visible */}
+          <View className="mb-4">
+            <Text className="text-lg mb-3">All Steps ({completedCount}/{total})</Text>
+            <FlatList
+              data={steps}
+              keyExtractor={(item) => item.title}
+              renderItem={({ item }) => (
+                <TaskStep {...item} />
+              )}
+              ItemSeparatorComponent={() => <View className="h-1" />}
+            />
+          </View>
         </Card>
 
         <Card variant="outline">
@@ -298,18 +300,9 @@ export default function Task3Screen() {
             </Button>
           </View>
           {transcript ? <Text className="mt-2 text-sm">Heard: {transcript}</Text> : null}
-
-          <Heading className="mb-3">Primitive Actions</Heading>
-          <View className="flex-row gap-4">
-            <Button variant="outline" className="h-20">
-              <ButtonText>Grasp</ButtonText>
-            </Button>
-            <Button variant="outline" className="h-20">
-              <ButtonText>Place</ButtonText>
-            </Button>
-          </View>
         </Card>
       </View>
     </SafeAreaView>
   );
 }
+
