@@ -63,6 +63,13 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice commands."
         }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice commands.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to use speech recognition for voice commands."
+        }
       ]
     ],
     "experiments": {

@@ -54,7 +54,7 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone for voice commands.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>This app needs speech recognition to process voice commands.</string>
+    <string>Allow $(PRODUCT_NAME) to use speech recognition for voice commands.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -17,8 +17,8 @@ try {
 }
 
 const mockTasks = [
-  { id: "1", title: "Prepare Medicine", description: "Prepare the medicine for the patient." },
-  { id: "2", title: "Set up the table", description: "Set the table for the meal." },
+  { id: "1", title: "Set up the table", description: "Set the table for the meal." },
+  { id: "2", title: "Prepare Medicine", description: "Prepare the medicine for the patient." },
   { id: "3", title: "Organize books", description: "Organize the books on the shelf." },
 ];
 
@@ -68,7 +68,7 @@ export default function Home() {
         latestTranscriptRef.current = "";
         // Check if we got any text
         if (!text || text.trim().length === 0) {
-          Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Prepare medicine\"\n- \"Set up table\"\n- \"Organize books\"");
+          Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
           return;
         }
         // Then process the transcript
@@ -130,23 +130,23 @@ export default function Home() {
     
     const t = String(transcript).toLowerCase().trim();
     
-    // Task 1: Prepare medicine - match "prepare", "prep", "medicine", or full phrase
+    // Task 1: Set up table - match "set", "table", "setup", or full phrase
     if (
-      t.includes("medicine") || 
-      t.startsWith("prep") ||
-      (t.includes("prep") && t.includes("med")) ||
-      (t === "medicine" || t === "med")
-    ) {
-      router.push((`/task/1`) as any);
-    } 
-    // Task 2: Set up table - match "set", "table", "setup", or full phrase
-    else if (
       t.includes("set up table") || 
       t.includes("set the table") || 
       t.includes("setup table") ||
       t.startsWith("set") ||
       t === "table" ||
       t.includes("table")
+    ) {
+      router.push((`/task/1`) as any);
+    } 
+    // Task 2: Prepare medicine - match "prepare", "prep", "medicine", or full phrase
+    else if (
+      t.includes("medicine") || 
+      t.startsWith("prep") ||
+      (t.includes("prep") && t.includes("med")) ||
+      (t === "medicine" || t === "med")
     ) {
       router.push((`/task/2`) as any);
     } 
@@ -159,7 +159,7 @@ export default function Home() {
       router.push((`/task/3`) as any);
     } 
     else {
-      Alert.alert("Command not recognized", `Heard: "${transcript}"\n\nTry saying:\n- "Prepare medicine" or "prep" or "medicine"\n- "Set up table" or "set" or "table"\n- "Organize books" or "organize" or "books"`);
+      Alert.alert("Command not recognized", `Heard: "${transcript}"\n\nTry saying:\n- "Set up table" or "set" or "table"\n- "Prepare medicine" or "prep" or "medicine"\n- "Organize books" or "organize" or "books"`);
     }
   };
 
@@ -314,7 +314,7 @@ export default function Home() {
           {isRecording ? 'Listening... tap to stop' : 'Speak a command'}
         </Text>
         <Text className="mt-2 text-xs text-gray-500 text-center">
-          Try: "Prepare medicine", "Set up table", or "Organize books"
+          Try: "Set up table", "Prepare medicine", or "Organize books"
         </Text>
       </View>
     </View>
