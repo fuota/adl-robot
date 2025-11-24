@@ -53,6 +53,7 @@
     "react-native-worklets": "0.5.1",
     "react-stately": "^3.39.0",
     "roslib": "^1.4.1",
+    "socket.io-client": "^4.7.2",
     "tailwind-variants": "^0.1.20",
     "tailwindcss": "^3.4.17"
   },
