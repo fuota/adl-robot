@@ -6,71 +6,59 @@ import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
+import { useTask } from "@/contexts/TaskContext";
 import {
   ActivityIcon,
   MicIcon,
   PauseIcon,
+  PlayIcon,
   RadioIcon,
   SlidersHorizontalIcon,
   SquareIcon,
 } from "lucide-react-native";
 import { FlatList, View } from "react-native";
-import { useTask } from "@/contexts/TaskContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const tasks = [
-  {
-    id: "1",
-    title: "Prepare medicine",
-    description: "Prepare the medicine for the patient.",
-    progress: 100,
-    currentStep: "Pour water and place water bottle",
-    steps: [
-      { title: "Pour water and place water bottle", status: "in-progress" },
-      { title: "Place cup", status: "not-started" },
-      { title: "Place plate", status: "not-started" },
-      { title: "Place and pour medicine bottle", status: "not-started" },
-    ],
-  },
-  {
-    id: "2",
-    title: "Set up the table",
-    description: "Set the table for the meal.",
-    progress: 0,
-    currentStep: "Place plates and cutlery",
-    steps: [
-      { title: "Place plates and cutlery", status: "not-started" },
-      { title: "Place glasses", status: "not-started" },
-    ],
-  },
-  {
-    id: "3",
-    title: "Organize books",
-    description: "Organize the books on the shelf.",
-    progress: 0,
-    currentStep: "Gather books",
-    steps: [
-      { title: "Gather books", status: "not-started" },
-      { title: "Arrange on shelf", status: "not-started" },
-    ],
-  },
-] as const;
-
 export default function TaskScreen() {
-  // Read selected id from TaskContext (set by Home) if available. Fallback to URL query for web.
-  let id = "1";
-  try {
-    const { selectedId } = useTask();
-    if (selectedId) id = selectedId;
-    else if (typeof window !== "undefined") id = new URLSearchParams(window.location.search).get("id") ?? "1";
-  } catch (e) {
-    // no context available, fallback to URL
-    if (typeof window !== "undefined") id = new URLSearchParams(window.location.search).get("id") ?? "1";
+  // Read selected id from TaskContext
+  const { selectedId, tasks, startTask, currentProgress } = useTask();
+  let id = selectedId || "1";
+  if (!id && typeof window !== "undefined") {
+    id = new URLSearchParams(window.location.search).get("id") ?? "1";
   }
 
   const task = tasks.find((t) => t.id === id) ?? tasks[0];
 
-  const mockSteps: Array<{ title: string; status: string }> = task.steps as any;
+  // If no task found, show loading or error
+  if (!task) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
+        <Text>Task not found</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const handleStartTask = () => {
+    startTask(task.id);
+  };
+
+  // Determine badge status and color
+  const getBadgeProps = () => {
+    switch (task.status) {
+      case "in-progress":
+        return { action: "warning" as const, text: "Running" };
+      case "completed":
+        return { action: "success" as const, text: "Completed" };
+      case "failed":
+        return { action: "error" as const, text: "Failed" };
+      default:
+        return { action: "muted" as const, text: "Ready" };
+    }
+  };
+
+  const badgeProps = getBadgeProps();
+  const currentStepNumber =
+    currentProgress?.task === task.id ? currentProgress.current_step : 1;
 
   return (
     <SafeAreaView className="flex-1 flex-row gap-4 bg-gray-50 px-5 py-5">
@@ -93,8 +81,8 @@ export default function TaskScreen() {
               <ActivityIcon size={20} />
               <Heading size="xl">Task</Heading>
             </View>
-            <Badge size="lg" variant="solid" action="success">
-              <BadgeText>Running</BadgeText>
+            <Badge size="lg" variant="solid" action={badgeProps.action}>
+              <BadgeText>{badgeProps.text}</BadgeText>
             </Badge>
           </View>
 
@@ -103,18 +91,26 @@ export default function TaskScreen() {
             <Text className="font-heading text-sm">{task.progress}%</Text>
           </View>
 
-          <Progress value={task.progress} orientation="horizontal" className="mb-2">
+          <Progress
+            value={task.progress}
+            orientation="horizontal"
+            className="mb-2"
+          >
             <ProgressFilledTrack />
           </Progress>
           <Text className="mb-6 font-heading">{`Current: ${task.currentStep}`}</Text>
 
           {/* Steps Section - Always Visible */}
           <View className="mb-4">
-            <Text className="text-lg mb-3">All Steps (1/4)</Text>
+            <Text className="mb-3 text-lg">
+              All Steps ({currentStepNumber}/{task.totalSteps})
+            </Text>
             <FlatList
-              data={mockSteps}
+              data={task.steps}
               keyExtractor={(item) => item.title}
-              renderItem={({ item }) => <TaskStep {...(item as any)} />}
+              renderItem={({ item }) => (
+                <TaskStep title={item.title} status={item.status} />
+              )}
               ItemSeparatorComponent={() => <View className="h-1" />}
             />
           </View>
@@ -127,15 +123,34 @@ export default function TaskScreen() {
           </View>
 
           <View className="mb-6 h-20 flex-row gap-4">
-            <Button className="h-full flex-1 flex-col">
-              <ButtonIcon as={PauseIcon} />
-              <ButtonText>Pause</ButtonText>
-            </Button>
-            <Button action="negative" className="h-full flex-1 flex-col">
+            {task.status === "not-started" || task.status === "failed" ? (
+              <Button
+                className="h-full flex-1 flex-col"
+                action="positive"
+                onPress={handleStartTask}
+              >
+                <ButtonIcon as={PlayIcon} />
+                <ButtonText>Start</ButtonText>
+              </Button>
+            ) : (
+              <Button className="h-full flex-1 flex-col" disabled>
+                <ButtonIcon as={PauseIcon} />
+                <ButtonText>Pause</ButtonText>
+              </Button>
+            )}
+            <Button
+              action="negative"
+              className="h-full flex-1 flex-col"
+              disabled
+            >
               <ButtonIcon as={SquareIcon} />
               <ButtonText>Stop</ButtonText>
             </Button>
-            <Button action="secondary" className="h-full flex-1 flex-col">
+            <Button
+              action="secondary"
+              className="h-full flex-1 flex-col"
+              disabled
+            >
               <ButtonIcon as={MicIcon} />
               <ButtonText>Voice</ButtonText>
             </Button>
