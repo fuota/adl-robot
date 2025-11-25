@@ -11,14 +11,15 @@ import {
   ActivityIcon,
   MicIcon,
   PauseIcon,
+  PlayIcon,
   RadioIcon,
   SlidersHorizontalIcon,
   SquareIcon,
 } from "lucide-react-native";
-import { FlatList, View, Pressable, DeviceEventEmitter, Platform } from "react-native";
+import { FlatList, View, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useTaskWebSocket } from "@/hooks/useTaskWebSocket";
+import { useTask } from "@/contexts/TaskContext";
 
 // Task definitions
 const taskDefinitions: Record<string, { title: string; steps: readonly { title: string; status: string }[] }> = {
@@ -34,10 +35,10 @@ const taskDefinitions: Record<string, { title: string; steps: readonly { title: 
   "2": {
     title: "Prepare medicine",
     steps: [
-      { title: "Pour water and place water bottle", status: "not-started" },
-      { title: "Place cup", status: "not-started" },
-      { title: "Place plate", status: "not-started" },
-      { title: "Place and pour medicine bottle", status: "not-started" },
+      { title: "Place water cup in serving area", status: "not-started" },
+      { title: "Place plate in serving area", status: "not-started" },
+      { title: "Pour water into cup", status: "not-started" },
+      { title: "Pour medicine into plate", status: "not-started" },
     ],
   },
   "3": {
@@ -56,81 +57,76 @@ export default function TaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const taskId = id || "1";
   
+  // Get task context for starting/stopping tasks via ROS
+  const { startTask, stopTask, tasks } = useTask();
+  const taskFromContext = tasks.find((t) => t.id === taskId);
+  
+  // Debug: Log task status for button state
+  useEffect(() => {
+    if (taskFromContext) {
+      console.log(`[Task] Button state check: taskId=${taskId}, status=${taskFromContext.status}, progress=${taskFromContext.progress}%`);
+    } else {
+      console.log(`[Task] Button state check: taskId=${taskId}, taskFromContext is null/undefined`);
+    }
+  }, [taskId, taskFromContext?.status, taskFromContext?.progress]);
+  
   const taskDef = taskDefinitions[taskId] || taskDefinitions["1"];
   const taskTitle = taskDef.title;
   const initialSteps = taskDef.steps;
+  
+  // Handler to start the task via ROS
+  const handleStartTask = () => {
+    console.log(`[Task] Starting task ${taskId} via ROS`);
+    startTask(taskId);
+  };
+  
+  // Handler to stop the task
+  const handleStopTask = () => {
+    console.log(`[Task] Stopping task ${taskId}`);
+    stopTask(taskId);
+  };
 
   type StepStatus = "completed" | "in-progress" | "not-started";
-  const [steps, setSteps] = useState(() => 
+  
+  // Use steps from TaskContext if available, otherwise use local state
+  const [localSteps, setLocalSteps] = useState(() => 
     initialSteps.map((s) => ({ title: s.title, status: s.status })) as { title: string; status: StepStatus }[]
   );
+  
+  // Use TaskContext steps directly (updated via ROS topic subscription)
+  // TaskContext subscribes to /task_progress topic directly via ROSLIB
+  // This is the ONLY source of truth for task progress - no WebSocket needed
+  const steps = taskFromContext?.steps || localSteps;
+  const taskProgress = taskFromContext?.progress || 0;
 
-  // Connect to WebSocket for real-time task updates
-  useTaskWebSocket(taskId);
-
+  // Sync with TaskContext updates (from ROS topic subscription on native)
   useEffect(() => {
-    // Initialize first step as in-progress
-    setSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : s.status })));
-  }, [taskId]);
+    if (taskFromContext?.steps) {
+      console.log(`[Task] Syncing with TaskContext: task ${taskId}, steps:`, taskFromContext.steps.map(s => `${s.title}: ${s.status}`));
+      // TaskContext has updated steps from ROS, use those
+      setLocalSteps(taskFromContext.steps.map(s => ({ 
+        title: s.title, 
+        status: s.status as StepStatus 
+      })));
+    } else {
+      // Initialize first step as in-progress when task changes (only if no TaskContext data)
+      setLocalSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : "not-started" })));
+    }
+  }, [taskId, taskFromContext?.steps, taskFromContext?.progress]);
 
   const completedCount = steps.filter((s) => s.status === "completed").length;
   const inProgressCount = steps.filter((s) => s.status === "in-progress").length;
   const total = steps.length;
   const currentIndex = steps.findIndex((s) => s.status === "in-progress");
-  const progress = Math.round((completedCount / total) * 100);
+  
+  // Use TaskContext progress (updates only when steps are completed)
+  // Progress = (completed_steps / total_steps) * 100
+  // Progress bar only updates after each step is fully executed
+  const progress = taskProgress || 0;
 
-  const advanceStep = () => {
-    const idx = steps.findIndex((s) => s.status === "in-progress");
-    if (idx === -1) {
-      setSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : s.status })));
-      return;
-    }
-    // Mark current step as completed and next as in-progress
-    setSteps((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      if (next[idx]) next[idx].status = "completed";
-      if (next[idx + 1]) next[idx + 1].status = "in-progress";
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    const handler = (payload: any) => {
-      const p = payload?.detail ?? payload;
-      if (!p) return;
-      if (p.taskId && String(p.taskId) !== taskId) return;
-      if (p.action === "advance") {
-        advanceStep();
-        return;
-      }
-      if (typeof p.stepIndex === "number") {
-        setSteps((prev) => {
-          const next = prev.map((s) => ({ ...s }));
-          if (next[p.stepIndex]) next[p.stepIndex].status = p.status || next[p.stepIndex].status;
-          return next;
-        });
-      }
-    };
-
-    let sub: any = null;
-    try {
-      sub = DeviceEventEmitter.addListener("taskStepUpdate", handler);
-    } catch (e) {
-      sub = null;
-    }
-
-    const webHandler = (e: any) => handler(e.detail ?? e);
-    if (typeof window !== "undefined" && window.addEventListener) {
-      window.addEventListener("taskStepUpdate", webHandler);
-    }
-
-    return () => {
-      sub && sub.remove && sub.remove();
-      if (typeof window !== "undefined" && window.removeEventListener) {
-        window.removeEventListener("taskStepUpdate", webHandler);
-      }
-    };
-  }, [taskId]);
+  // No WebSocket or DeviceEventEmitter needed - TaskContext handles all updates via ROS topic subscription
+  // TaskContext subscribes to /task_progress topic directly and updates task state
+  // The component automatically re-renders when TaskContext state changes
 
   // Speech support for voice navigation on task pages
   let NativeVoice: any = null;
@@ -173,6 +169,27 @@ export default function TaskScreen() {
     const t = String(text).toLowerCase().trim();
     setTranscript(text);
     
+    // Check for start command - support various phrases
+    if (
+      t === "start" ||
+      t === "start task" ||
+      t.includes("start the task") ||
+      t.includes("begin") ||
+      t.includes("begin task") ||
+      t === "go" ||
+      t === "execute" ||
+      t.includes("execute task")
+    ) {
+      // Only start if task is not already in progress
+      if (!taskFromContext || taskFromContext.status === "not-started" || taskFromContext.status === "failed" || taskFromContext.status === "completed") {
+        console.log("[Voice] Starting task via voice command");
+        startTask(taskId);
+      } else {
+        console.log("[Voice] Task is already in progress, cannot start");
+      }
+      return;
+    }
+    
     // Check for back/home commands - support various phrases
     if (
       t === "back" || 
@@ -190,7 +207,7 @@ export default function TaskScreen() {
       return;
     }
     // You can add more voice commands here for task-specific actions
-  }, [router]);
+  }, [router, taskFromContext, startTask, taskId]);
 
   // Set up Voice event listeners
   useEffect(() => {
@@ -396,7 +413,7 @@ export default function TaskScreen() {
           <Heading size="xl">Live Camera</Heading>
         </View>
 
-        <View className="flex-1">
+        <View>
           <CameraStream />
         </View>
       </Card>
@@ -447,14 +464,27 @@ export default function TaskScreen() {
           </View>
 
           <View className="mb-6 h-20 flex-row gap-4 items-stretch">
-            <Button className="h-full flex-1 flex-col">
-              <ButtonIcon as={PauseIcon} />
-              <ButtonText>Pause</ButtonText>
-            </Button>
-            <Button action="negative" className="h-full flex-1 flex-col">
-              <ButtonIcon as={SquareIcon} />
-             <ButtonText>Stop</ButtonText>
-            </Button>
+            {/* Start/Stop button - changes based on task status */}
+            {(!taskFromContext || taskFromContext.status === "not-started" || taskFromContext.status === "failed" || taskFromContext.status === "completed") ? (
+              <Button
+                className="h-full flex-1 flex-col"
+                action="positive"
+                onPress={handleStartTask}
+              >
+                <ButtonIcon as={PlayIcon} />
+                <ButtonText>Start</ButtonText>
+              </Button>
+            ) : (
+              <Button
+                className="h-full flex-1 flex-col"
+                action="negative"
+                onPress={handleStopTask}
+              >
+                <ButtonIcon as={SquareIcon} />
+                <ButtonText>Stop</ButtonText>
+              </Button>
+            )}
+            {/* Voice button - always visible */}
             <Button 
               action="secondary" 
               className="h-full flex-1 flex-col" 

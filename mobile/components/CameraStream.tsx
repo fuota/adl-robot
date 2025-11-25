@@ -1,23 +1,17 @@
 import { useRos } from "@/contexts/RosContext";
 import { useEffect, useState } from "react";
-import { Image, Platform, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 export default function CameraStream() {
-  // Immediately return a native-friendly placeholder so Expo Go on iPad
-  // renders the UI without attempting any ROS/network work.
-  if (Platform.OS !== "web") {
-    return (
-      <View className="h-full w-full items-center justify-center bg-gray-100">
-        <Text className="text-gray-500">Camera disabled for demo (ROS disabled on native)</Text>
-      </View>
-    );
-  }
-
-  // Web-only path: use ROS normally
-  const { ros } = useRos();
+  const { ros, connected } = useRos();
   const [imageData, setImageData] = useState<string>();
 
   useEffect(() => {
+    if (!connected) {
+      setImageData(undefined);
+      return;
+    }
+
     // Dynamically require ROSLIB to avoid bundling it into native builds.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ROSLIB = require("roslib");
@@ -43,11 +37,26 @@ export default function CameraStream() {
         // ignore
       }
     };
-  }, [ros]);
+  }, [ros, connected]);
+
+  if (!connected) {
+    return (
+      <View className="w-full items-center justify-center bg-gray-100" style={{ aspectRatio: 4/3 }}>
+        <Text className="text-gray-500">Connecting to ROS...</Text>
+      </View>
+    );
+  }
 
   return imageData ? (
-    <Image source={{ uri: imageData }} className="h-full w-full" />
+    <Image 
+      source={{ uri: imageData }} 
+      className="w-full" 
+      style={{ aspectRatio: 4/3 }}
+      resizeMode="contain"
+    />
   ) : (
-    <View className="h-full w-full bg-black" />
+    <View className="w-full items-center justify-center bg-black" style={{ aspectRatio: 4/3 }}>
+      <Text className="text-white">Waiting for camera feed...</Text>
+    </View>
   );
 }
