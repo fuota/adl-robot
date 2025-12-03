@@ -30,6 +30,16 @@ export default function Home() {
 
   // Helper function to stop speech recognition
   const stopSpeechRecognition = async () => {
+    // Clear any pending timeouts
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+      processingTimeoutRef.current = null;
+    }
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+    
     if (Voice && Platform.OS !== "web" && nativeListeningRef.current) {
       try {
         if (typeof Voice.stop === 'function') {
@@ -43,36 +53,99 @@ export default function Home() {
     }
   };
 
-  // Store the latest transcript
+  // Store the latest transcript and debounce timer
   const latestTranscriptRef = useRef<string>("");
+  const processingTimeoutRef = useRef<any>(null);
+  const silenceTimeoutRef = useRef<any>(null);
 
   // Set up Voice event listeners
   useEffect(() => {
     if (Voice && Platform.OS !== "web") {
       // Handle partial results (interim results while speaking)
+      // Accumulate partial results and wait for silence before processing
       const onSpeechPartialResults = (event: any) => {
         const text = (event?.value && event.value[0]) || "";
         if (text) {
           latestTranscriptRef.current = text;
-          console.log("Partial result:", text);
+          console.log("Partial result (accumulating):", text);
+          
+          // Clear any existing silence timeout
+          if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+          }
+          
+          // Wait for 2 seconds of silence before processing
+          // This ensures we capture the complete phrase
+          silenceTimeoutRef.current = setTimeout(() => {
+            if (latestTranscriptRef.current && latestTranscriptRef.current.trim().length > 0) {
+              console.log("Silence detected, processing accumulated text:", latestTranscriptRef.current);
+              const textToProcess = latestTranscriptRef.current;
+              latestTranscriptRef.current = "";
+              
+              // Clear processing timeout since we're processing now
+              if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+                processingTimeoutRef.current = null;
+              }
+              
+              stopSpeechRecognition().then(() => {
+                navigateForTranscript(textToProcess);
+              });
+            }
+          }, 2000); // Wait 2 seconds of silence
         }
       };
 
       // Handle final results (complete phrase)
+      // Don't process immediately - just update transcript and wait for more or silence
       const onSpeechResults = async (event: any) => {
-        const text = (event?.value && event.value[0]) || latestTranscriptRef.current || "";
-        console.log("Final result:", text);
-        // Stop recognition first
-        await stopSpeechRecognition();
-        // Clear the partial results
-        latestTranscriptRef.current = "";
-        // Check if we got any text
-        if (!text || text.trim().length === 0) {
-          Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
-          return;
+        const text = (event?.value && event.value[0]) || "";
+        console.log("Final result received (not processing yet):", text);
+        
+        // Update the latest transcript with the new result
+        if (text) {
+          // Append to existing if we have partial results, or replace
+          if (latestTranscriptRef.current && !latestTranscriptRef.current.includes(text)) {
+            latestTranscriptRef.current = latestTranscriptRef.current + " " + text;
+          } else {
+            latestTranscriptRef.current = text;
+          }
         }
-        // Then process the transcript
-        navigateForTranscript(text);
+        
+        // Don't process immediately - wait for silence or more results
+        // Clear any existing processing timeout
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+        }
+        
+        // Set a longer delay (3 seconds) to wait for more words
+        // This helps capture longer phrases like "set up table"
+        processingTimeoutRef.current = setTimeout(async () => {
+          const finalText = latestTranscriptRef.current || text;
+          console.log("Processing final text after delay:", finalText);
+          
+          // Stop recognition
+          await stopSpeechRecognition();
+          
+          // Clear refs
+          latestTranscriptRef.current = "";
+          if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+            processingTimeoutRef.current = null;
+          }
+          if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+          }
+          
+          // Check if we got any text
+          if (!finalText || finalText.trim().length === 0) {
+            Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
+            return;
+          }
+          // Then process the transcript
+          navigateForTranscript(finalText);
+        }, 3000); // Wait 3 seconds to ensure complete phrase is captured
       };
       
       const onSpeechError = async (event: any) => {
@@ -96,14 +169,20 @@ export default function Home() {
       // Handle when speech ends - check if we got any results
       const onSpeechEnd = async () => {
         console.log("Speech ended, waiting for final results...");
-        // Set a timeout to handle case where no results come after speech ends
+        // Set a longer timeout to handle case where no results come after speech ends
+        // This gives more time for complete phrases to be processed
         setTimeout(async () => {
-          // If we still have no transcript after a delay, it means no speech was detected
-          if (!latestTranscriptRef.current && isRecording) {
+          // If we have accumulated text, process it
+          if (latestTranscriptRef.current && latestTranscriptRef.current.trim().length > 0) {
+            const textToProcess = latestTranscriptRef.current;
+            latestTranscriptRef.current = "";
+            await stopSpeechRecognition();
+            navigateForTranscript(textToProcess);
+          } else if (!latestTranscriptRef.current && isRecording) {
             await stopSpeechRecognition();
             Alert.alert("No Speech Detected", "No speech was detected. Please try again and speak clearly.");
           }
-        }, 2000); // Wait 2 seconds for results
+        }, 3000); // Wait 3 seconds for results (increased from 2s to capture longer phrases)
       };
 
       Voice.onSpeechPartialResults = onSpeechPartialResults;
@@ -114,6 +193,14 @@ export default function Home() {
       return () => {
         // Cleanup
         stopSpeechRecognition();
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
+        }
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+          silenceTimeoutRef.current = null;
+        }
         if (Voice && typeof Voice.destroy === 'function') {
           Voice.destroy().catch(() => {});
         }
@@ -130,36 +217,38 @@ export default function Home() {
     
     const t = String(transcript).toLowerCase().trim();
     
-    // Task 1: Set up table - match "set", "table", "setup", or full phrase
+    // Task 1: Set up table - require full phrases only
     if (
       t.includes("set up table") || 
       t.includes("set the table") || 
       t.includes("setup table") ||
-      t.startsWith("set") ||
-      t === "table" ||
-      t.includes("table")
+      t === "set up table" ||
+      t === "set the table"
     ) {
       router.push((`/task/1`) as any);
     } 
-    // Task 2: Prepare medicine - match "prepare", "prep", "medicine", or full phrase
+    // Task 2: Prepare medicine - require full phrases only
     else if (
-      t.includes("medicine") || 
-      t.startsWith("prep") ||
-      (t.includes("prep") && t.includes("med")) ||
-      (t === "medicine" || t === "med")
+      t.includes("prepare medicine") || 
+      t.includes("prepare the medicine") ||
+      t === "prepare medicine" ||
+      t === "prepare the medicine"
     ) {
       router.push((`/task/2`) as any);
     } 
-    // Task 3: Organize books - match "organize", "organise", "book", "books", or full phrase
+    // Task 3: Organize books - require full phrases only
     else if (
-      t.includes("book") || 
-      t.includes("organize") ||
-      t.includes("organise")
+      t.includes("organize books") || 
+      t.includes("organise books") ||
+      t.includes("organize the books") ||
+      t.includes("organise the books") ||
+      t === "organize books" ||
+      t === "organise books"
     ) {
       router.push((`/task/3`) as any);
     } 
     else {
-      Alert.alert("Command not recognized", `Heard: "${transcript}"\n\nTry saying:\n- "Set up table" or "set" or "table"\n- "Prepare medicine" or "prep" or "medicine"\n- "Organize books" or "organize" or "books"`);
+      Alert.alert("Command not recognized", `Heard: "${transcript}"\n\nTry saying the complete phrase:\n- "Set up table"\n- "Prepare medicine"\n- "Organize books"`);
     }
   };
 
@@ -191,9 +280,32 @@ export default function Home() {
           // Small delay to ensure previous recognition is fully stopped
           await new Promise(resolve => setTimeout(resolve, 100));
 
+          // Clear any existing timeouts
+          if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+            processingTimeoutRef.current = null;
+          }
+          if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+          }
+          latestTranscriptRef.current = "";
+
           Voice.start("en-US");
           setIsRecording(true);
           nativeListeningRef.current = true;
+          
+          // Set a maximum listening time (10 seconds) to prevent indefinite listening
+          setTimeout(async () => {
+            if (nativeListeningRef.current && latestTranscriptRef.current) {
+              const textToProcess = latestTranscriptRef.current;
+              latestTranscriptRef.current = "";
+              await stopSpeechRecognition();
+              if (textToProcess.trim().length > 0) {
+                navigateForTranscript(textToProcess);
+              }
+            }
+          }, 10000); // Maximum 10 seconds of listening
         } catch (e: any) {
           console.error("Voice start error:", e);
           setIsRecording(false);
@@ -214,22 +326,63 @@ export default function Home() {
         try {
           const recognition = new SpeechRecognition();
           recognition.lang = "en-US";
-          recognition.interimResults = false;
+          recognition.interimResults = true; // Enable interim results to see partial phrases
           recognition.maxAlternatives = 1;
-          recognition.continuous = false;
-
+          recognition.continuous = true; // Keep listening until manually stopped
+          
+          // Store the latest complete transcript
+          let capturedFinalTranscript = "";
+          
           recognition.onresult = (ev: any) => {
-            const transcript = String(ev.results[0][0].transcript);
-            navigateForTranscript(transcript);
+            // Get the most complete transcript from all results
+            let interimTranscript = "";
+            let finalTranscript = "";
+            
+            for (let i = 0; i < ev.results.length; i++) {
+              const transcript = ev.results[i][0].transcript;
+              if (ev.results[i].isFinal) {
+                finalTranscript += transcript + " ";
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+            
+            // Store final transcript for timeout handler
+            if (finalTranscript.trim()) {
+              capturedFinalTranscript = finalTranscript.trim();
+            }
+            
+            // Only process if we have a complete phrase (wait for final results)
+            if (finalTranscript.trim()) {
+              // Stop recognition and process the complete phrase
+              recognition.stop();
+              navigateForTranscript(finalTranscript.trim());
+            }
           };
-
+          
           recognition.onerror = (e: any) => {
             console.error("Speech recognition error", e);
             setIsRecording(false);
+            recognition.stop();
             Alert.alert("Speech Error", `Could not recognize speech: ${e?.error || "Unknown error"}`);
           };
-
+          
+          // Add a timeout to stop listening after a reasonable time
+          // This prevents it from listening indefinitely
+          const recognitionTimeout = setTimeout(() => {
+            if (recognitionRef.current) {
+              recognition.stop();
+              if (capturedFinalTranscript) {
+                navigateForTranscript(capturedFinalTranscript);
+              } else {
+                setIsRecording(false);
+                Alert.alert("No Speech Detected", "Please speak a complete command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
+              }
+            }
+          }, 5000); // Listen for up to 5 seconds
+          
           recognition.onend = () => {
+            clearTimeout(recognitionTimeout);
             setIsRecording(false);
             recognitionRef.current = null;
           };

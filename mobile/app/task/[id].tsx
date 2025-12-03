@@ -8,13 +8,18 @@ import { Heading } from "@/components/ui/heading";
 import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
 import {
-  ActivityIcon,
-  MicIcon,
-  PauseIcon,
-  PlayIcon,
-  RadioIcon,
-  SlidersHorizontalIcon,
-  SquareIcon,
+  Activity as ActivityIcon,
+  Hand as HandIcon,
+  Mic as MicIcon,
+  Pause as PauseIcon,
+  Play as PlayIcon,
+  Radio as RadioIcon,
+  SlidersHorizontal as SlidersHorizontalIcon,
+  Square as SquareIcon,
+  Droplet as DropletIcon,
+  Book as BookIcon,
+  UtensilsCrossed as UtensilsIcon,
+  Circle as CircleIcon,
 } from "lucide-react-native";
 import { FlatList, View, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,9 +32,9 @@ const taskDefinitions: Record<string, { title: string; steps: readonly { title: 
     title: "Set up the table",
     steps: [
       { title: "Arrange plate on table", status: "not-started" },
-      { title: "Arrange spoon on table", status: "not-started" },
-      { title: "Arrange milk on the table", status: "not-started" },
-      { title: "Arrange glass on the table", status: "not-started" },
+      { title: "Arrange fork on table", status: "not-started" },
+      { title: "Arrange spoon on the table", status: "not-started" },
+      //{ title: "Arrange glass on the table", status: "not-started" },
     ],
   },
   "2": {
@@ -58,7 +63,7 @@ export default function TaskScreen() {
   const taskId = id || "1";
   
   // Get task context for starting/stopping tasks via ROS
-  const { startTask, stopTask, tasks } = useTask();
+  const { startTask, stopTask, tasks, callPrimitiveAction } = useTask();
   const taskFromContext = tasks.find((t) => t.id === taskId);
   
   // Debug: Log task status for button state
@@ -68,6 +73,8 @@ export default function TaskScreen() {
     } else {
       console.log(`[Task] Button state check: taskId=${taskId}, taskFromContext is null/undefined`);
     }
+    // Debug: Check if primitive action buttons should be visible
+    console.log(`[Task] Primitive actions visibility: taskId=${taskId}, shouldShow=${taskId === "1" || taskId === "2" || taskId === "3"}`);
   }, [taskId, taskFromContext?.status, taskFromContext?.progress]);
   
   const taskDef = taskDefinitions[taskId] || taskDefinitions["1"];
@@ -86,6 +93,12 @@ export default function TaskScreen() {
     stopTask(taskId);
   };
 
+  // Handler for primitive actions (Grasp, Pour)
+  const handlePrimitiveAction = (action: string) => {
+    console.log(`[Task] Calling primitive action: ${action} for task ${taskId}`);
+    callPrimitiveAction(action, taskId);
+  };
+
   type StepStatus = "completed" | "in-progress" | "not-started";
   
   // Use steps from TaskContext if available, otherwise use local state
@@ -98,6 +111,7 @@ export default function TaskScreen() {
   // This is the ONLY source of truth for task progress - no WebSocket needed
   const steps = taskFromContext?.steps || localSteps;
   const taskProgress = taskFromContext?.progress || 0;
+  const totalStepsCount = taskFromContext?.totalSteps || steps.length;
 
   // Sync with TaskContext updates (from ROS topic subscription on native)
   useEffect(() => {
@@ -115,9 +129,14 @@ export default function TaskScreen() {
   }, [taskId, taskFromContext?.steps, taskFromContext?.progress]);
 
   const completedCount = steps.filter((s) => s.status === "completed").length;
-  const inProgressCount = steps.filter((s) => s.status === "in-progress").length;
-  const total = steps.length;
   const currentIndex = steps.findIndex((s) => s.status === "in-progress");
+  const fallbackStepNumber = currentIndex >= 0 ? currentIndex + 1 : 1;
+  const activeStepNumber = taskFromContext?.currentStepNumber || fallbackStepNumber;
+  const activeStepTitle =
+    taskFromContext?.currentStep ||
+    steps[currentIndex]?.title ||
+    steps[Math.min(fallbackStepNumber - 1, steps.length - 1)]?.title ||
+    "Ready";
   
   // Use TaskContext progress (updates only when steps are completed)
   // Progress = (completed_steps / total_steps) * 100
@@ -441,11 +460,13 @@ export default function TaskScreen() {
           <Progress value={progress} orientation="horizontal" className="mb-2">
             <ProgressFilledTrack />
           </Progress>
-          <Text className="mb-6 font-heading">Step {Math.min(currentIndex + 1, total)} of {total}: {steps[currentIndex]?.title ?? steps[0].title}</Text>
+          <Text className="mb-6 font-heading">
+            Step {Math.min(activeStepNumber, totalStepsCount)} of {totalStepsCount}: {activeStepTitle}
+          </Text>
 
           {/* Steps Section - Always Visible */}
           <View className="mb-4">
-            <Text className="text-lg mb-3">All Steps ({completedCount}/{total})</Text>
+            <Text className="text-lg mb-3">All Steps ({completedCount}/{totalStepsCount})</Text>
             <FlatList
               data={steps}
               keyExtractor={(item) => item.title}
@@ -501,6 +522,100 @@ export default function TaskScreen() {
               <ButtonText>{listening ? "Listening..." : "Voice"}</ButtonText>
             </Button>
           </View>
+
+          {/* Primitive Action Buttons - Show different actions for different tasks */}
+          {(taskId === "1" || taskId === "2" || taskId === "3") && (
+            <View className="mb-4">
+              <Text className="text-sm font-semibold mb-3 text-gray-700">Primitive Actions</Text>
+              
+              {/* Task 1: Set up table - 4 buttons (2x2 grid) */}
+              {taskId === "1" && (
+                <View className="gap-3">
+                  <View className="h-20 flex-row gap-4 items-stretch">
+                    <Button
+                      className="h-full flex-1 flex-col"
+                      action="primary"
+                      onPress={() => handlePrimitiveAction("pick_up_spoon")}
+                    >
+                      <ButtonIcon as={UtensilsIcon} />
+                      <ButtonText>Pick Up Spoon</ButtonText>
+                    </Button>
+                    <Button
+                      className="h-full flex-1 flex-col"
+                      action="primary"
+                      onPress={() => handlePrimitiveAction("pick_up_fork")}
+                    >
+                      <ButtonIcon as={UtensilsIcon} />
+                      <ButtonText>Pick Up Fork</ButtonText>
+                    </Button>
+                  </View>
+                  <View className="h-20 flex-row gap-4 items-stretch">
+                    <Button
+                      className="h-full flex-1 flex-col"
+                      action="primary"
+                      onPress={() => handlePrimitiveAction("pick_up_plate")}
+                    >
+                      <ButtonIcon as={CircleIcon} />
+                      <ButtonText>Pick Up Plate</ButtonText>
+                    </Button>
+                    <Button
+                      className="h-full flex-1 flex-col"
+                      action="primary"
+                      onPress={() => handlePrimitiveAction("pick_up_bowl")}
+                    >
+                      <ButtonIcon as={CircleIcon} />
+                      <ButtonText>Pick Up Bowl</ButtonText>
+                    </Button>
+                  </View>
+                </View>
+              )}
+
+              {/* Task 2: Prepare medicine - 2 buttons */}
+              {taskId === "2" && (
+                <View className="h-20 flex-row gap-4 items-stretch">
+                  <Button
+                    className="h-full flex-1 flex-col"
+                    action="primary"
+                    onPress={() => handlePrimitiveAction("grasp")}
+                  >
+                    <ButtonIcon as={HandIcon} />
+                    <ButtonText>Grasp</ButtonText>
+                  </Button>
+                  <Button
+                    className="h-full flex-1 flex-col"
+                    action="primary"
+                    onPress={() => handlePrimitiveAction("pour")}
+                  >
+                    <ButtonIcon as={DropletIcon} />
+                    <ButtonText>Pour</ButtonText>
+                  </Button>
+                </View>
+              )}
+
+              {/* Task 3: Organize books - 2 buttons */}
+              {taskId === "3" && (
+                <View className="h-20 flex-row gap-4 items-stretch">
+                  <Button
+                    className="h-full flex-1 flex-col"
+                    action="primary"
+                    onPress={() => handlePrimitiveAction("pick_up_book_1")}
+                  >
+                    <ButtonIcon as={BookIcon} />
+                    <ButtonText>Pick Up Book 1</ButtonText>
+                  </Button>
+                  <Button
+                    className="h-full flex-1 flex-col"
+                    action="primary"
+                    onPress={() => handlePrimitiveAction("pick_up_book_2")}
+                  >
+                    <ButtonIcon as={BookIcon} />
+                    <ButtonText>Pick Up Book 2</ButtonText>
+                  </Button>
+                </View>
+              )}
+            </View>
+          )}
+          
           {transcript ? <Text className="mt-2 text-sm">Heard: {transcript}</Text> : null}
         </Card>
       </View>

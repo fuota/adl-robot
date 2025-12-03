@@ -303,8 +303,14 @@ export default function TaskScreen() {
   };
 
   const badgeProps = getBadgeProps();
-  const currentStepNumber =
-    currentProgress?.task === task.id ? currentProgress.current_step : 1;
+  const inProgressIndex = task.steps.findIndex((s) => s.status === "in-progress");
+  const fallbackStepNumber = inProgressIndex >= 0 ? inProgressIndex + 1 : 1;
+  const activeStepNumber = task.currentStepNumber || fallbackStepNumber;
+  const fallbackTitle =
+    task.steps[
+      Math.max(0, Math.min(fallbackStepNumber - 1, task.steps.length - 1))
+    ]?.title || "Ready";
+  const activeStepTitle = task.currentStep || task.steps[inProgressIndex]?.title || fallbackTitle;
 
   return (
     <SafeAreaView className="flex-1 flex-row gap-4 bg-gray-50 px-5 py-5">
@@ -344,12 +350,14 @@ export default function TaskScreen() {
           >
             <ProgressFilledTrack />
           </Progress>
-          <Text className="mb-6 font-heading">{`Current: ${task.currentStep}`}</Text>
+          <Text className="mb-6 font-heading">
+            Step {Math.min(activeStepNumber, task.totalSteps)} of {task.totalSteps}: {activeStepTitle}
+          </Text>
 
           {/* Steps Section - Always Visible */}
           <View className="mb-4">
             <Text className="mb-3 text-lg">
-              All Steps ({currentStepNumber}/{task.totalSteps})
+              All Steps ({Math.min(activeStepNumber, task.totalSteps)}/{task.totalSteps})
             </Text>
             <FlatList
               data={task.steps}

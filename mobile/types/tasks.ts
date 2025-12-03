@@ -40,6 +40,7 @@ export interface Task {
   description: string;
   progress: number;
   currentStep: string;
+  currentStepNumber: number;
   status: TaskStatus;
   steps: Array<{
     title: string;

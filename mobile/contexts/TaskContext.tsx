@@ -24,6 +24,7 @@ type TaskContextType = {
   pauseTask: (taskId: string) => void;
   resumeTask: (taskId: string) => void;
   isPaused: (taskId: string) => boolean;
+  callPrimitiveAction: (action: string, taskId?: string) => void;
   isLoading: boolean;
 };
 
@@ -58,6 +59,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
       description: taskDef.description,
       progress: 0,
       currentStep: taskDef.steps[0]?.description || "Ready",
+      currentStepNumber: 1,
       status: "not-started",
       steps: taskDef.steps.map((step) => ({
         title: step.description,
@@ -79,6 +81,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
           description: "Places bowl, fork, and spoon in serving areas",
           progress: 0,
           currentStep: "Ready",
+          currentStepNumber: 1,
           status: "not-started",
           steps: [
             { title: "Place bowl in serving area", status: "not-started" },
@@ -94,6 +97,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
           description: "Places water cup, plate, and pours water and medicine",
           progress: 0,
           currentStep: "Ready",
+          currentStepNumber: 1,
           status: "not-started",
           steps: [
             { title: "Place water cup in serving area", status: "not-started" },
@@ -110,6 +114,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
           description: "Places books in bookshelf compartments",
           progress: 0,
           currentStep: "Ready",
+          currentStepNumber: 1,
           status: "not-started",
           steps: [
             { title: "Place book 1 in compartment 1", status: "not-started" },
@@ -192,44 +197,36 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
       progressTopic.subscribe((message: any) => {
         try {
           const progress: TaskProgress = JSON.parse(message.data);
-          console.log("[TaskContext] Received ROS progress update:", progress);
+          console.log("[TaskContext] Received ROS progress update:", JSON.stringify(progress, null, 2));
           setCurrentProgress(progress);
 
           // Update task state based on progress
           setTasks((prevTasks) =>
             prevTasks.map((task) => {
               const taskKey = TASK_SERVICE_MAP[task.id];
+              console.log(`[TaskContext] Checking task ${task.id}: taskKey="${taskKey}", progress.task="${progress.task}", match=${taskKey === progress.task}`);
               if (taskKey === progress.task) {
-                console.log(`[TaskContext] Updating task ${task.id} with progress: step=${progress.current_step}, status=${progress.status}, progress=${progress.progress_percent}%`);
-                
-                // If task failed, reset UI to initial state (progress 0%, step 1 highlighted)
                 if (progress.status === "failed") {
-                  console.log(`[TaskContext] Task ${task.id} failed - resetting UI to initial state`);
+                  console.log(`[TaskContext] Task ${task.id} failed - resetting UI state`);
                   const resetSteps = task.steps.map((step, index) => ({
                     ...step,
-                    status: index === 0 ? "in-progress" as const : "not-started" as const,
+                    status: index === 0 ? ("in-progress" as const) : ("not-started" as const),
                   }));
-                  
-                  const updatedTask = {
+
+                  return {
                     ...task,
                     progress: 0,
                     currentStep: task.steps[0]?.title || "Ready to start",
+                    currentStepNumber: 1,
                     status: "failed" as const,
                     steps: resetSteps,
                   };
-                  
-                  console.log(`[TaskContext] Reset task ${task.id}: progress=0%, step 1 highlighted, all other steps not-started`);
-                  return updatedTask;
                 }
-                
-                // Update steps status for normal progress
-                // When current_step = 2 and status = "in-progress", it means:
-                // - Step 1 is completed (stepNumber < current_step)
-                // - Step 2 is in-progress (stepNumber === current_step)
-                // When current_step = 1 and status = "completed", it means:
-                // - Step 1 is completed
+
+                // Update steps status with ROS data
                 const updatedSteps = task.steps.map((step, index) => {
                   const stepNumber = index + 1;
+                  let title = step.title;
                   let status:
                     | "not-started"
                     | "in-progress"
@@ -237,25 +234,29 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     | "failed" = "not-started";
 
                   if (stepNumber < progress.current_step) {
-                    // Previous steps are completed (remain highlighted)
-                    // When current_step = 2, step 1 (stepNumber=1) is completed
-                    // When current_step = 3, steps 1-2 are completed, etc.
                     status = "completed";
+                    console.log(`[TaskContext] Step ${stepNumber} (${title}): completed (stepNumber < current_step)`);
                   } else if (stepNumber === progress.current_step) {
-                    // Current step status matches progress status
                     if (progress.status === "completed") {
-                      // If current step is marked as completed, mark it as completed
                       status = "completed";
-                    } else {
-                      // Otherwise it's in-progress
+                      console.log(`[TaskContext] Step ${stepNumber} (${title}): completed (status=completed)`);
+                    } else if (progress.status === "in-progress") {
                       status = "in-progress";
+                      console.log(`[TaskContext] Step ${stepNumber} (${title}): in-progress`);
+                    } else {
+                      status = progress.status as any;
+                      console.log(`[TaskContext] Step ${stepNumber} (${title}): ${progress.status}`);
+                    }
+
+                    if (progress.description) {
+                      title = progress.description;
                     }
                   } else {
-                    // Future steps (stepNumber > current_step) remain "not-started"
                     status = "not-started";
+                    console.log(`[TaskContext] Step ${stepNumber} (${title}): not-started (future step)`);
                   }
 
-                  return { ...step, status };
+                  return { ...step, status, title };
                 });
 
                 // Calculate progress based on COMPLETED steps only
@@ -271,7 +272,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 const updatedTask = {
                   ...task,
                   progress: calculatedProgress,
-                  currentStep: progress.description,
+                  currentStep: progress.description || task.currentStep,
+                  currentStepNumber: progress.current_step || task.currentStepNumber || 1,
+                  totalSteps: progress.total_steps || task.totalSteps,
                   status: progress.status,
                   steps: updatedSteps,
                 };
@@ -285,6 +288,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
           );
         } catch (e) {
           console.error("[TaskContext] Failed to parse progress update:", e);
+          console.error("[TaskContext] Raw message data:", message?.data);
         }
       });
 
@@ -342,7 +346,13 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === taskId
-              ? { ...task, status: "in-progress" as const, progress: 0 }
+              ? { 
+                  ...task, 
+                  status: "in-progress" as const, 
+                  progress: 0,
+                  currentStepNumber: 1,
+                  currentStep: task.steps[0]?.title || "Starting..."
+                }
               : task,
           ),
         );
@@ -393,7 +403,13 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === taskId
-            ? { ...task, status: "not-started" as const, progress: 0 }
+            ? { 
+                ...task, 
+                status: "not-started" as const, 
+                progress: 0,
+                currentStepNumber: 1,
+                currentStep: task.steps[0]?.title || "Ready"
+              }
             : task,
         ),
       );
@@ -507,6 +523,67 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     [pausedTasks],
   );
 
+  // Call a primitive action (e.g., "grasp", "pour")
+  const callPrimitiveAction = useCallback(
+    (action: string, taskId?: string) => {
+      console.log(`[Task] Calling primitive action: ${action}${taskId ? ` for task ${taskId}` : ""}`);
+      
+      if (!connected || !ros) {
+        console.warn(`[Task] Cannot call primitive action: ROS not connected (connected=${connected}, ros=${!!ros})`);
+        return;
+      }
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ROSLIB = require("roslib");
+        
+        // Try calling as a ROS service first (e.g., /grasp, /pour)
+        // If service doesn't exist, fall back to publishing to a topic
+        const actionService = new ROSLIB.Service({
+          ros: ros,
+          name: `/${action}`,
+          serviceType: "std_srvs/Trigger",
+        });
+
+        const request = new ROSLIB.ServiceRequest({});
+
+        actionService.callService(
+          request,
+          (result: any) => {
+            console.log(`[Task] Primitive action ${action} completed:`, result.success ? "Success" : "Failed");
+          },
+          (error: any) => {
+            // If service call fails, try publishing to topic instead
+            console.log(`[Task] Service call failed, trying topic publish for ${action}:`, error);
+            
+            try {
+              const actionTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/robot/primitive_action`,
+                messageType: "std_msgs/String",
+              });
+
+              const actionMessage = new ROSLIB.Message({
+                data: JSON.stringify({ 
+                  action: action, 
+                  task_id: taskId || "" 
+                }),
+              });
+
+              actionTopic.publish(actionMessage);
+              console.log(`[Task] Published primitive action ${action} to /robot/primitive_action`);
+            } catch (topicError) {
+              console.error(`[Task] Error publishing primitive action:`, topicError);
+            }
+          },
+        );
+      } catch (e) {
+        console.error(`[Task] Error calling primitive action ${action}:`, e);
+      }
+    },
+    [connected, ros],
+  );
+
   // Clear paused state when task stops
   useEffect(() => {
     tasks.forEach((task) => {
@@ -533,6 +610,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         pauseTask,
         resumeTask,
         isPaused,
+        callPrimitiveAction,
         isLoading,
       }}
     >
