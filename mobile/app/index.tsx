@@ -125,10 +125,10 @@ export default function Home() {
           console.log("Processing final text after delay:", finalText);
           
           // Stop recognition
-          await stopSpeechRecognition();
+        await stopSpeechRecognition();
           
           // Clear refs
-          latestTranscriptRef.current = "";
+        latestTranscriptRef.current = "";
           if (processingTimeoutRef.current) {
             clearTimeout(processingTimeoutRef.current);
             processingTimeoutRef.current = null;
@@ -138,23 +138,23 @@ export default function Home() {
             silenceTimeoutRef.current = null;
           }
           
-          // Check if we got any text
+        // Check if we got any text
           if (!finalText || finalText.trim().length === 0) {
-            Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
-            return;
-          }
-          // Then process the transcript
+          Alert.alert("No Speech Detected", "Please speak a command. Try saying:\n- \"Set up table\"\n- \"Prepare medicine\"\n- \"Organize books\"");
+          return;
+        }
+        // Then process the transcript
           navigateForTranscript(finalText);
         }, 3000); // Wait 3 seconds to ensure complete phrase is captured
       };
-      
+
       const onSpeechError = async (event: any) => {
-          await stopSpeechRecognition();
+        await stopSpeechRecognition();
         latestTranscriptRef.current = "";
-        
+
         const errorCode = event?.error?.code || event?.code;
         const errorMessage = event?.error?.message || event?.message || "Unknown error";
-        
+
         // Handle specific error cases
         if (errorCode === 6 || errorMessage.includes("no speech") || errorMessage.includes("no match")) {
           Alert.alert("No Speech Detected", "No speech was detected. Please try again and speak clearly.");
@@ -165,7 +165,7 @@ export default function Home() {
         }
       
       };
-      
+
       // Handle when speech ends - check if we got any results
       const onSpeechEnd = async () => {
         console.log("Speech ended, waiting for final results...");
@@ -214,13 +214,13 @@ export default function Home() {
   const navigateForTranscript = async (transcript: string) => {
     // Ensure speech recognition is stopped before processing
     await stopSpeechRecognition();
-    
+
     const t = String(transcript).toLowerCase().trim();
-    
+
     // Task 1: Set up table - require full phrases only
     if (
-      t.includes("set up table") || 
-      t.includes("set the table") || 
+      t.includes("set up table") ||
+      t.includes("set the table") ||
       t.includes("setup table") ||
       t === "set up table" ||
       t === "set the table"
@@ -235,7 +235,7 @@ export default function Home() {
       t === "prepare the medicine"
     ) {
       router.push((`/task/2`) as any);
-    } 
+    }
     // Task 3: Organize books - require full phrases only
     else if (
       t.includes("organize books") || 
@@ -332,7 +332,7 @@ export default function Home() {
           
           // Store the latest complete transcript
           let capturedFinalTranscript = "";
-          
+
           recognition.onresult = (ev: any) => {
             // Get the most complete transcript from all results
             let interimTranscript = "";
@@ -359,7 +359,7 @@ export default function Home() {
               navigateForTranscript(finalTranscript.trim());
             }
           };
-          
+
           recognition.onerror = (e: any) => {
             console.error("Speech recognition error", e);
             setIsRecording(false);
@@ -380,7 +380,7 @@ export default function Home() {
               }
             }
           }, 5000); // Listen for up to 5 seconds
-          
+
           recognition.onend = () => {
             clearTimeout(recognitionTimeout);
             setIsRecording(false);
@@ -432,24 +432,24 @@ export default function Home() {
       <Heading className="mb-4" size="xl">
         Available Tasks
       </Heading>
-      <FlatList
+        <FlatList
         data={mockTasks}
-        keyExtractor={(item) => item.id}
-        ItemSeparatorComponent={() => <View className="h-3" />}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => {
-              // Navigate directly to per-task route
+          keyExtractor={(item) => item.id}
+          ItemSeparatorComponent={() => <View className="h-3" />}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => {
+                // Navigate directly to per-task route
               router.push((`/task/${item.id}`) as any);
-            }}
-          >
-            <Card variant="outline" className="text-center">
-              <Heading>{item.title}</Heading>
-              <Text>{item.description}</Text>
-            </Card>
-          </Pressable>
-        )}
-      />
+              }}
+            >
+              <Card variant="outline" className="text-center">
+                <Heading>{item.title}</Heading>
+                <Text>{item.description}</Text>
+              </Card>
+            </Pressable>
+          )}
+        />
 
       {/* Speech button under tasks */}
       <View className="mt-6 items-center">

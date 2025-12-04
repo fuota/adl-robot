@@ -6,20 +6,16 @@ import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Progress, ProgressFilledTrack } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import {
   Activity as ActivityIcon,
   Hand as HandIcon,
   Mic as MicIcon,
-  Pause as PauseIcon,
   Play as PlayIcon,
   Radio as RadioIcon,
   SlidersHorizontal as SlidersHorizontalIcon,
   Square as SquareIcon,
-  Droplet as DropletIcon,
-  Book as BookIcon,
-  UtensilsCrossed as UtensilsIcon,
-  Circle as CircleIcon,
 } from "lucide-react-native";
 import { FlatList, View, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -63,8 +59,14 @@ export default function TaskScreen() {
   const taskId = id || "1";
   
   // Get task context for starting/stopping tasks via ROS
-  const { startTask, stopTask, tasks, callPrimitiveAction } = useTask();
+  const { startTask, stopTask, tasks, callPrimitiveAction, detectedObjects } = useTask();
   const taskFromContext = tasks.find((t) => t.id === taskId);
+  
+  // State for selected object
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  
+  // State for showing object labels
+  const [showObjects, setShowObjects] = useState(false);
   
   // Debug: Log task status for button state
   useEffect(() => {
@@ -80,6 +82,23 @@ export default function TaskScreen() {
   const taskDef = taskDefinitions[taskId] || taskDefinitions["1"];
   const taskTitle = taskDef.title;
   const initialSteps = taskDef.steps;
+
+  // Derive a dynamic badge state from the task status
+  const getBadgeProps = () => {
+    const status = taskFromContext?.status || "not-started";
+    switch (status) {
+      case "in-progress":
+        return { action: "warning" as const, text: "Running" };
+      case "completed":
+        return { action: "success" as const, text: "Completed" };
+      case "failed":
+        return { action: "error" as const, text: "Failed" };
+      case "not-started":
+      default:
+        return { action: "muted" as const, text: "Idle" };
+    }
+  };
+  const badgeProps = getBadgeProps();
   
   // Handler to start the task via ROS
   const handleStartTask = () => {
@@ -93,10 +112,18 @@ export default function TaskScreen() {
     stopTask(taskId);
   };
 
-  // Handler for primitive actions (Grasp, Pour)
-  const handlePrimitiveAction = (action: string) => {
-    console.log(`[Task] Calling primitive action: ${action} for task ${taskId}`);
-    callPrimitiveAction(action, taskId);
+  // Handler for primitive actions (Grasp, Lift, Drop)
+  const handlePrimitiveAction = (action: string, objectId: string) => {
+    console.log(`[Task] Calling primitive action: ${action} for object ${objectId} in task ${taskId}`);
+    callPrimitiveAction(action, objectId, taskId);
+  };
+  
+  // Format object name: remove underscores, capitalize first letter of each word
+  const formatObjectName = (name: string): string => {
+    return name
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   };
 
   type StepStatus = "completed" | "in-progress" | "not-started";
@@ -209,6 +236,27 @@ export default function TaskScreen() {
       return;
     }
     
+    // Check for stop command - support various phrases
+    if (
+      t === "stop" ||
+      t === "stop task" ||
+      t.includes("stop the task") ||
+      t.includes("halt") ||
+      t.includes("halt task") ||
+      t === "cancel" ||
+      t.includes("cancel task") ||
+      t.includes("abort")
+    ) {
+      // Only stop if task is in progress
+      if (taskFromContext && taskFromContext.status === "in-progress") {
+        console.log("[Voice] Stopping task via voice command");
+        stopTask(taskId);
+      } else {
+        console.log("[Voice] Task is not in progress, cannot stop");
+      }
+      return;
+    }
+    
     // Check for back/home commands - support various phrases
     if (
       t === "back" || 
@@ -226,7 +274,7 @@ export default function TaskScreen() {
       return;
     }
     // You can add more voice commands here for task-specific actions
-  }, [router, taskFromContext, startTask, taskId]);
+  }, [router, taskFromContext, startTask, stopTask, taskId]);
 
   // Set up Voice event listeners
   useEffect(() => {
@@ -427,13 +475,45 @@ export default function TaskScreen() {
   return (
     <SafeAreaView className="flex-1 flex-row gap-4 bg-gray-50 px-5 py-5">
       <Card variant="outline" className="w-8/12">
-        <View className="mb-4 flex-row items-center gap-2">
-          <RadioIcon size={20} />
-          <Heading size="xl">Live Camera</Heading>
+        <View className="mb-4 flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            <RadioIcon size={20} />
+            <Heading size="xl">Live Camera</Heading>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-sm">Show Objects</Text>
+            <Switch
+              value={showObjects}
+              onValueChange={setShowObjects}
+            />
+          </View>
         </View>
 
         <View>
-          <CameraStream />
+          <CameraStream showObjects={showObjects} />
+        </View>
+        
+        {/* Detected Objects - Buttons in a row */}
+        <View className="mt-4">
+          <Text className="text-sm font-semibold mb-2 text-gray-700">Detected Objects</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {Object.entries(detectedObjects).map(([objectId, obj]) => (
+              <Button
+                key={objectId}
+                size="sm"
+                variant={selectedObjectId === objectId ? "solid" : "outline"}
+                action={selectedObjectId === objectId ? "primary" : "secondary"}
+                onPress={() => setSelectedObjectId(selectedObjectId === objectId ? null : objectId)}
+              >
+                <ButtonText>
+                  {formatObjectName(obj.name)}
+                </ButtonText>
+              </Button>
+            ))}
+            {Object.keys(detectedObjects).length === 0 && (
+              <Text className="text-sm text-gray-500">No objects detected yet</Text>
+            )}
+          </View>
         </View>
       </Card>
 
@@ -447,8 +527,8 @@ export default function TaskScreen() {
               <ActivityIcon size={20} />
               <Heading size="xl">Task</Heading>
             </View>
-            <Badge size="lg" variant="solid" action="success">
-              <BadgeText>Running</BadgeText>
+            <Badge size="lg" variant="solid" action={badgeProps.action}>
+              <BadgeText>{badgeProps.text}</BadgeText>
             </Badge>
           </View>
 
@@ -507,8 +587,8 @@ export default function TaskScreen() {
             )}
             {/* Voice button - always visible */}
             <Button 
-              action="secondary" 
-              className="h-full flex-1 flex-col" 
+              action="primary" 
+              className="h-full flex-1 flex-col bg-blue-600" 
               onPress={async () => {
                 console.log("Voice button pressed, listening:", listening);
                 if (listening) {
@@ -523,96 +603,38 @@ export default function TaskScreen() {
             </Button>
           </View>
 
-          {/* Primitive Action Buttons - Show different actions for different tasks */}
-          {(taskId === "1" || taskId === "2" || taskId === "3") && (
+          {/* Primitive Action Buttons - Show when object is selected */}
+          {selectedObjectId && detectedObjects[selectedObjectId] && (
             <View className="mb-4">
-              <Text className="text-sm font-semibold mb-3 text-gray-700">Primitive Actions</Text>
-              
-              {/* Task 1: Set up table - 4 buttons (2x2 grid) */}
-              {taskId === "1" && (
-                <View className="gap-3">
-                  <View className="h-20 flex-row gap-4 items-stretch">
-                    <Button
-                      className="h-full flex-1 flex-col"
-                      action="primary"
-                      onPress={() => handlePrimitiveAction("pick_up_spoon")}
-                    >
-                      <ButtonIcon as={UtensilsIcon} />
-                      <ButtonText>Pick Up Spoon</ButtonText>
-                    </Button>
-                    <Button
-                      className="h-full flex-1 flex-col"
-                      action="primary"
-                      onPress={() => handlePrimitiveAction("pick_up_fork")}
-                    >
-                      <ButtonIcon as={UtensilsIcon} />
-                      <ButtonText>Pick Up Fork</ButtonText>
-                    </Button>
-                  </View>
-                  <View className="h-20 flex-row gap-4 items-stretch">
-                    <Button
-                      className="h-full flex-1 flex-col"
-                      action="primary"
-                      onPress={() => handlePrimitiveAction("pick_up_plate")}
-                    >
-                      <ButtonIcon as={CircleIcon} />
-                      <ButtonText>Pick Up Plate</ButtonText>
-                    </Button>
-                    <Button
-                      className="h-full flex-1 flex-col"
-                      action="primary"
-                      onPress={() => handlePrimitiveAction("pick_up_bowl")}
-                    >
-                      <ButtonIcon as={CircleIcon} />
-                      <ButtonText>Pick Up Bowl</ButtonText>
-                    </Button>
-                  </View>
-                </View>
-              )}
-
-              {/* Task 2: Prepare medicine - 2 buttons */}
-              {taskId === "2" && (
-                <View className="h-20 flex-row gap-4 items-stretch">
-                  <Button
-                    className="h-full flex-1 flex-col"
-                    action="primary"
-                    onPress={() => handlePrimitiveAction("grasp")}
-                  >
-                    <ButtonIcon as={HandIcon} />
-                    <ButtonText>Grasp</ButtonText>
-                  </Button>
-                  <Button
-                    className="h-full flex-1 flex-col"
-                    action="primary"
-                    onPress={() => handlePrimitiveAction("pour")}
-                  >
-                    <ButtonIcon as={DropletIcon} />
-                    <ButtonText>Pour</ButtonText>
-                  </Button>
-                </View>
-              )}
-
-              {/* Task 3: Organize books - 2 buttons */}
-              {taskId === "3" && (
-                <View className="h-20 flex-row gap-4 items-stretch">
-                  <Button
-                    className="h-full flex-1 flex-col"
-                    action="primary"
-                    onPress={() => handlePrimitiveAction("pick_up_book_1")}
-                  >
-                    <ButtonIcon as={BookIcon} />
-                    <ButtonText>Pick Up Book 1</ButtonText>
-                  </Button>
-                  <Button
-                    className="h-full flex-1 flex-col"
-                    action="primary"
-                    onPress={() => handlePrimitiveAction("pick_up_book_2")}
-                  >
-                    <ButtonIcon as={BookIcon} />
-                    <ButtonText>Pick Up Book 2</ButtonText>
-                  </Button>
-                </View>
-              )}
+              <Text className="text-sm font-semibold mb-3 text-gray-700">
+                Primitive Actions for {formatObjectName(detectedObjects[selectedObjectId].name)}
+              </Text>
+              <View className="h-20 flex-row gap-4 items-stretch">
+                <Button
+                  className="h-full flex-1 flex-col"
+                  action="primary"
+                  onPress={() => handlePrimitiveAction("grasp", selectedObjectId)}
+                >
+                  <ButtonIcon as={HandIcon} />
+                  <ButtonText>Grasp</ButtonText>
+                </Button>
+                <Button
+                  className="h-full flex-1 flex-col"
+                  action="primary"
+                  onPress={() => handlePrimitiveAction("lift", selectedObjectId)}
+                >
+                  <ButtonIcon as={SlidersHorizontalIcon} />
+                  <ButtonText>Lift</ButtonText>
+                </Button>
+                <Button
+                  className="h-full flex-1 flex-col"
+                  action="primary"
+                  onPress={() => handlePrimitiveAction("drop", selectedObjectId)}
+                >
+                  <ButtonIcon as={SquareIcon} />
+                  <ButtonText>Drop</ButtonText>
+                </Button>
+              </View>
             </View>
           )}
           
