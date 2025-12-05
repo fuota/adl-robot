@@ -236,7 +236,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                   console.log(`[TaskContext] Task ${task.id} failed - resetting UI state`);
                   const resetSteps = task.steps.map((step, index) => ({
                     ...step,
-                    status: index === 0 ? ("in-progress" as const) : ("not-started" as const),
+                    status: index === 0 ? ("in_progress" as const) : ("not-started" as const),
                   }));
 
                   return {
@@ -257,17 +257,17 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                   let title = step.title;
                   let status:
                     | "not-started"
-                    | "in-progress"
+                    | "in_progress"
                     | "completed"
                     | "failed" = step.status; // Preserve existing status by default
 
                   // If this is the current step, update its status from ROS
                   if (stepNumber === currentStepNum) {
                     // ROS status applies to this current step
-                    // Normalize ROS status: "in_progress" -> "in-progress" (ROS may use underscore)
+                    // Use ROS status directly (ROS uses "in_progress" with underscore)
                     let rosStatus: string = progress.status || "";
-                    if (rosStatus === "in_progress" || rosStatus === "in-progress") {
-                      status = "in-progress";
+                    if (rosStatus === "in_progress") {
+                      status = "in_progress";
                     } else if (rosStatus === "completed") {
                       status = "completed";
                     } else if (rosStatus === "failed") {
@@ -302,21 +302,28 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                   return { ...step, status, title };
                 });
 
-                // Use progress_percent directly from ROS if available, otherwise calculate from completed steps
-                // ROS provides progress_percent in the /task_progress message
+                // Calculate progress percentage
+                // Progress = (completed steps / total steps) * 100 + partial progress for in-progress step
                 const rosProgressPercent = progress.progress_percent;
                 const totalStepsForProgress = progress.total_steps || task.totalSteps || updatedSteps.length;
                 
                 let finalProgress: number;
-                if (rosProgressPercent !== undefined && rosProgressPercent !== null) {
-                  // Use ROS-provided progress_percent directly
-                  finalProgress = Math.round(rosProgressPercent);
-                  console.log(`[TaskContext] Using ROS progress_percent: ${finalProgress}%`);
-                } else {
-                  // Fallback: Calculate progress based on completed steps
+                // Always calculate from completed steps to ensure progress only updates after step completion
+                // Don't use ROS progress_percent during step execution - only count completed steps
+                {
+                  // Calculate progress based on step statuses
+                  // Progress only updates AFTER a step is completed, not while in-progress
+                  // Each completed step = (100 / totalSteps)%
+                  const stepValue = 100 / totalStepsForProgress;
                   const completedSteps = updatedSteps.filter(s => s.status === "completed").length;
-                  finalProgress = Math.round((completedSteps / totalStepsForProgress) * 100);
-                  console.log(`[TaskContext] ROS progress_percent not available, calculating from completed steps: ${finalProgress}%`);
+                  
+                  // Only count completed steps - in-progress steps don't contribute to progress
+                  finalProgress = Math.round(completedSteps * stepValue);
+                  
+                  // Cap at 100% (only reached when all steps are completed)
+                  finalProgress = Math.min(finalProgress, 100);
+                  
+                  console.log(`[TaskContext] Calculated progress: ${finalProgress}% (completed: ${completedSteps}/${totalStepsForProgress}, stepValue: ${stepValue}%)`);
                 }
                 
                 // Enhanced logging for all tasks
@@ -337,7 +344,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 // - "completed" if ALL steps are completed
                 // - "running" (in-progress) if task started OR any step is in-progress (but not all completed)
                 // - "idle" (not-started) if all steps are not-started
-                let finalStatus: "not-started" | "in-progress" | "completed" | "failed";
+                let finalStatus: "not-started" | "in_progress" | "completed" | "failed";
                 
                 // Check if any step failed
                 const hasFailedStep = updatedSteps.some(s => s.status === "failed");
@@ -354,9 +361,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     console.log(`[TaskContext] Task 2: Overall status = "completed" (all steps finished)`);
                   }
                 }
-                // Check if task has been started (any step is in-progress or completed, but not all completed)
-                else if (updatedSteps.some(s => s.status === "in-progress" || s.status === "completed") || task.status === "in-progress") {
-                  finalStatus = "in-progress";
+                // Check if task has been started (any step is in_progress or completed, but not all completed)
+                else if (updatedSteps.some(s => s.status === "in_progress" || s.status === "completed") || task.status === "in_progress") {
+                  finalStatus = "in_progress";
                   if (task.id === "2") {
                     console.log(`[TaskContext] Task 2: Overall status = "running" (task active)`);
                   }
@@ -491,7 +498,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             task.id === taskId
               ? { 
                   ...task, 
-                  status: "in-progress" as const, 
+                  status: "in_progress" as const, 
                   progress: 0,
                   currentStepNumber: 1,
                   currentStep: task.steps[0]?.title || "Starting..."
@@ -534,6 +541,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
   const stopTask = useCallback(
     (taskId: string) => {
       console.log(`[Task] Stopping task ${taskId}`);
+      console.log(`[Task] ROS connection status: connected=${connected}, ros=${!!ros}`);
       
       // Update task status to not-started
       setTasks((prevTasks) =>
@@ -550,52 +558,94 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         ),
       );
 
-      // Call ROS service to stop the robotic arm immediately
-      if (connected && ros) {
+      // Call ROS to stop the robotic arm immediately
+      if (!connected || !ros) {
+        console.warn(`[Task] Cannot stop task: ROS not connected (connected=${connected}, ros=${!!ros})`);
+        return;
+      }
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ROSLIB = require("roslib");
+        
+        console.log(`[Task] ROS object:`, ros ? "exists" : "null");
+        console.log(`[Task] ROS connection state:`, ros?.isConnected ? "connected" : "not connected");
+        
+        // First, try to publish to emergency_stop topic (most reliable)
         try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const ROSLIB = require("roslib");
+          console.log(`[Task] Publishing emergency stop to /emergency_stop topic...`);
+          const emergencyStopTopic = new ROSLIB.Topic({
+            ros: ros,
+            name: "/emergency_stop",
+            messageType: "std_msgs/String",
+          });
+
+          const emergencyMessage = new ROSLIB.Message({
+            data: JSON.stringify({ command: "stop", task_id: taskId }),
+          });
+
+          emergencyStopTopic.publish(emergencyMessage);
+          console.log(`[Task] Published emergency stop command to /emergency_stop topic`);
+        } catch (topicError) {
+          console.error(`[Task] Error publishing to /emergency_stop topic:`, topicError);
+        }
+        
+        // Call emergency_stop ROS service (primary method - ROS2 uses std_srvs/srv/Trigger)
+        try {
+          console.log(`[Task] Attempting to call /emergency_stop service...`);
           
-          // Call emergency_stop ROS service
+          // Use ROS2 service type format: std_srvs/srv/Trigger (as confirmed by command line)
           const emergencyStopService = new ROSLIB.Service({
             ros: ros,
             name: "/emergency_stop",
-            serviceType: "std_srvs/Trigger",
+            serviceType: "std_srvs/srv/Trigger",
           });
 
           const request = new ROSLIB.ServiceRequest({});
 
+          console.log(`[Task] Calling emergency_stop service for task ${taskId}...`);
+          console.log(`[Task] Service name: /emergency_stop, Service type: std_srvs/srv/Trigger`);
+          
           emergencyStopService.callService(
             request,
             (result: any) => {
-              console.log(`[Task] Emergency stop service call successful for task ${taskId}:`, result.success ? "Success" : "Failed");
+              console.log(`[Task] ✅ Emergency stop service call SUCCESSFUL for task ${taskId}`);
+              console.log(`[Task] Service result:`, JSON.stringify(result, null, 2));
+              console.log(`[Task] Success: ${result?.success}, Message: ${result?.message}`);
             },
             (error: any) => {
-              // If service call fails, fall back to publishing to topic
-              console.log(`[Task] Emergency stop service /emergency_stop not available, falling back to topic publish:`, error);
-              try {
-                const stopTopic = new ROSLIB.Topic({
-                  ros: ros,
-                  name: "/robot/stop_task",
-                  messageType: "std_msgs/String",
-                });
-
-                const stopMessage = new ROSLIB.Message({
-                  data: JSON.stringify({ task_id: taskId, command: "stop" }),
-                });
-
-                stopTopic.publish(stopMessage);
-                console.log(`[Task] Published stop command to /robot/stop_task topic for task ${taskId}`);
-              } catch (topicPublishError) {
-                console.error(`[Task] Error publishing stop command to topic:`, topicPublishError);
-              }
+              console.error(`[Task] ❌ Emergency stop service call FAILED:`, error);
+              console.error(`[Task] Error message:`, error?.message || error);
+              console.error(`[Task] Error details:`, JSON.stringify(error, null, 2));
             }
           );
-        } catch (e) {
-          console.error(`[Task] Error calling emergency stop service:`, e);
+        } catch (serviceError: any) {
+          console.error(`[Task] ❌ Error creating emergency_stop service:`, serviceError);
+          console.error(`[Task] Error message:`, serviceError?.message || serviceError);
+          console.error(`[Task] Error stack:`, serviceError?.stack);
         }
-      } else {
-        console.warn(`[Task] Cannot stop task: ROS not connected (connected=${connected}, ros=${!!ros})`);
+        
+        // Also publish to /robot/stop_task as backup
+        try {
+          console.log(`[Task] Publishing stop command to /robot/stop_task topic...`);
+          const stopTopic = new ROSLIB.Topic({
+            ros: ros,
+            name: "/robot/stop_task",
+            messageType: "std_msgs/String",
+          });
+
+          const stopMessage = new ROSLIB.Message({
+            data: JSON.stringify({ task_id: taskId, command: "stop" }),
+          });
+
+          stopTopic.publish(stopMessage);
+          console.log(`[Task] Published stop command to /robot/stop_task topic for task ${taskId}`);
+        } catch (topicPublishError) {
+          console.error(`[Task] Error publishing stop command to /robot/stop_task topic:`, topicPublishError);
+        }
+      } catch (e) {
+        console.error(`[Task] Error in stop task:`, e);
+        console.error(`[Task] Error details:`, JSON.stringify(e, null, 2));
       }
     },
     [connected, ros],

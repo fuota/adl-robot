@@ -87,7 +87,7 @@ export default function TaskScreen() {
   const getBadgeProps = () => {
     const status = taskFromContext?.status || "not-started";
     switch (status) {
-      case "in-progress":
+      case "in_progress":
         return { action: "warning" as const, text: "Running" };
       case "completed":
         return { action: "success" as const, text: "Finished" };
@@ -126,7 +126,7 @@ export default function TaskScreen() {
       .join(" ");
   };
 
-  type StepStatus = "completed" | "in-progress" | "not-started";
+  type StepStatus = "completed" | "in_progress" | "not-started";
   
   // Use steps from TaskContext if available, otherwise use local state
   const [localSteps, setLocalSteps] = useState(() => 
@@ -151,12 +151,12 @@ export default function TaskScreen() {
       })));
     } else {
       // Initialize first step as in-progress when task changes (only if no TaskContext data)
-      setLocalSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in-progress" : "not-started" })));
+      setLocalSteps((prev) => prev.map((s, i) => ({ ...s, status: i === 0 ? "in_progress" : "not-started" })));
     }
   }, [taskId, taskFromContext?.steps, taskFromContext?.progress]);
 
   const completedCount = steps.filter((s) => s.status === "completed").length;
-  const currentIndex = steps.findIndex((s) => s.status === "in-progress");
+  const currentIndex = steps.findIndex((s) => s.status === "in_progress");
   const fallbackStepNumber = currentIndex >= 0 ? currentIndex + 1 : 1;
   const activeStepNumber = taskFromContext?.currentStepNumber || fallbackStepNumber;
   const activeStepTitle =
@@ -260,7 +260,7 @@ export default function TaskScreen() {
       t.includes("abort")
     ) {
       // Only stop if task is in progress
-      if (taskFromContext && taskFromContext.status === "in-progress") {
+      if (taskFromContext && taskFromContext.status === "in_progress") {
         console.log("[Voice] Stopping task via voice command");
         stopTask(taskId);
       } else {

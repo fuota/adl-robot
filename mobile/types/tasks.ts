@@ -2,7 +2,7 @@
  * Task Types - Synced with ROS backend
  */
 
-export type TaskStatus = "not-started" | "in-progress" | "completed" | "failed";
+export type TaskStatus = "not-started" | "in_progress" | "completed" | "failed";
 
 export interface TaskStep {
   step: number;
