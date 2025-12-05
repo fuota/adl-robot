@@ -90,7 +90,7 @@ export default function TaskScreen() {
       case "in-progress":
         return { action: "warning" as const, text: "Running" };
       case "completed":
-        return { action: "success" as const, text: "Completed" };
+        return { action: "success" as const, text: "Finished" };
       case "failed":
         return { action: "error" as const, text: "Failed" };
       case "not-started":
@@ -165,10 +165,22 @@ export default function TaskScreen() {
     steps[Math.min(fallbackStepNumber - 1, steps.length - 1)]?.title ||
     "Ready";
   
-  // Use TaskContext progress (updates only when steps are completed)
-  // Progress = (completed_steps / total_steps) * 100
-  // Progress bar only updates after each step is fully executed
+  // Use TaskContext progress (updates in real-time from ROS)
+  // Progress comes from ROS progress_percent field
+  // Progress bar updates in real-time as ROS publishes updates
   const progress = taskProgress || 0;
+  
+  // Debug: Log progress updates for prepare medicine task
+  useEffect(() => {
+    if (taskId === "2" && taskFromContext) {
+      console.log(`[Task] Prepare Medicine Progress Update:`, {
+        progress: taskFromContext.progress,
+        status: taskFromContext.status,
+        currentStep: taskFromContext.currentStepNumber,
+        totalSteps: taskFromContext.totalSteps,
+      });
+    }
+  }, [taskId, taskFromContext?.progress, taskFromContext?.status, taskFromContext?.currentStepNumber]);
 
   // No WebSocket or DeviceEventEmitter needed - TaskContext handles all updates via ROS topic subscription
   // TaskContext subscribes to /task_progress topic directly and updates task state

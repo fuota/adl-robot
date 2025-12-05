@@ -198,14 +198,18 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("[TaskContext] Received ROS progress update:", JSON.stringify(progress, null, 2));
           setCurrentProgress(progress);
 
-          // Normalize task names for comparison (case-insensitive, handle underscores/hyphens)
+          // Normalize task names for comparison (case-insensitive, handle underscores/hyphens/spaces)
           const normalizeTaskName = (name: string): string => {
-            return name.toLowerCase().replace(/[-_]/g, "").trim();
+            return name.toLowerCase().replace(/[-_\s]/g, "").trim();
           };
 
           // Update task state based on progress
-          setTasks((prevTasks) =>
-            prevTasks.map((task) => {
+          setTasks((prevTasks) => {
+            // First, log all progress updates for debugging
+            console.log(`[TaskContext] Processing progress update for task: "${progress.task}"`);
+            console.log(`[TaskContext] Available tasks:`, prevTasks.map(t => ({ id: t.id, title: t.title, status: t.status })));
+            
+            return prevTasks.map((task) => {
               const taskKey = TASK_SERVICE_MAP[task.id];
               const normalizedTaskKey = normalizeTaskName(taskKey || "");
               const normalizedProgressTask = normalizeTaskName(progress.task || "");
@@ -222,6 +226,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 console.log(`  - Current step: ${progress.current_step}/${progress.total_steps}`);
                 console.log(`  - Status: ${progress.status}`);
                 console.log(`  - Description: "${progress.description}"`);
+                console.log(`  - Progress percent: ${progress.progress_percent}`);
               } else {
                 console.log(`[TaskContext] Checking task ${task.id}: taskKey="${taskKey}", progress.task="${progress.task}", match=${isMatch}`);
               }
@@ -245,7 +250,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 }
 
                 // Update steps status with ROS data
-                // When a new step starts (current_step > 1), mark all previous steps as completed
+                // ROS publishes status for the current step only (in_progress, completed, failed)
                 const currentStepNum = progress.current_step || 1;
                 const updatedSteps = task.steps.map((step, index) => {
                   const stepNumber = index + 1;
@@ -254,39 +259,26 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     | "not-started"
                     | "in-progress"
                     | "completed"
-                    | "failed" = "not-started";
+                    | "failed" = step.status; // Preserve existing status by default
 
-                  // If this step is before the current step, it's completed
-                  if (stepNumber < currentStepNum) {
-                    status = "completed";
-                    if (task.id === "2") {
-                      console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): completed (stepNumber < current_step ${currentStepNum})`);
-                    } else {
-                      console.log(`[TaskContext] Step ${stepNumber} (${title}): completed (stepNumber < current_step)`);
-                    }
-                  } 
-                  // If this is the current step
-                  else if (stepNumber === currentStepNum) {
-                    if (progress.status === "completed") {
-                      status = "completed";
-                      if (task.id === "2") {
-                        console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): completed (status=completed)`);
-                      } else {
-                        console.log(`[TaskContext] Step ${stepNumber} (${title}): completed (status=completed)`);
-                      }
-                    } else if (progress.status === "in-progress") {
+                  // If this is the current step, update its status from ROS
+                  if (stepNumber === currentStepNum) {
+                    // ROS status applies to this current step
+                    // Normalize ROS status: "in_progress" -> "in-progress" (ROS may use underscore)
+                    let rosStatus: string = progress.status || "";
+                    if (rosStatus === "in_progress" || rosStatus === "in-progress") {
                       status = "in-progress";
+                    } else if (rosStatus === "completed") {
+                      status = "completed";
+                    } else if (rosStatus === "failed") {
+                      status = "failed";
+                    }
+                    
+                    if (status !== step.status) {
                       if (task.id === "2") {
-                        console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): in-progress`);
+                        console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): ${status} (from ROS, was: ${step.status})`);
                       } else {
-                        console.log(`[TaskContext] Step ${stepNumber} (${title}): in-progress`);
-                      }
-                    } else {
-                      status = progress.status as any;
-                      if (task.id === "2") {
-                        console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): ${progress.status}`);
-                      } else {
-                        console.log(`[TaskContext] Step ${stepNumber} (${title}): ${progress.status}`);
+                        console.log(`[TaskContext] Step ${stepNumber} (${title}): ${status} (from ROS)`);
                       }
                     }
 
@@ -294,14 +286,18 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     if (progress.description) {
                       title = progress.description;
                     }
-                  } 
-                  // Future steps
-                  else {
-                    status = "not-started";
-                    if (task.id === "2" && stepNumber <= (progress.total_steps || task.totalSteps || 4)) {
-                      console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): not-started (future step)`);
+                  }
+                  // If this step is before the current step, mark as completed (unless already failed)
+                  else if (stepNumber < currentStepNum) {
+                    // Only mark as completed if not already failed
+                    if (step.status !== "failed") {
+                      status = "completed";
+                      if (task.id === "2") {
+                        console.log(`[TaskContext] Task 2 - Step ${stepNumber} (${title}): completed (previous step)`);
+                      }
                     }
                   }
+                  // Future steps remain not-started (or keep their existing status if already set)
 
                   return { ...step, status, title };
                 });
@@ -336,13 +332,50 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                   console.log(`[TaskContext] Step statuses:`, updatedSteps.map((s, i) => `Step ${i + 1}: ${s.status}`));
                 }
                 
+                // Determine overall task status based on step statuses:
+                // - "failed" if any step failed
+                // - "completed" if ALL steps are completed
+                // - "running" (in-progress) if task started OR any step is in-progress (but not all completed)
+                // - "idle" (not-started) if all steps are not-started
+                let finalStatus: "not-started" | "in-progress" | "completed" | "failed";
+                
+                // Check if any step failed
+                const hasFailedStep = updatedSteps.some(s => s.status === "failed");
+                if (hasFailedStep) {
+                  finalStatus = "failed";
+                  if (task.id === "2") {
+                    console.log(`[TaskContext] Task 2: Overall status = "failed" (step failed)`);
+                  }
+                }
+                // Check if ALL steps are completed
+                else if (updatedSteps.length > 0 && updatedSteps.every(s => s.status === "completed")) {
+                  finalStatus = "completed";
+                  if (task.id === "2") {
+                    console.log(`[TaskContext] Task 2: Overall status = "completed" (all steps finished)`);
+                  }
+                }
+                // Check if task has been started (any step is in-progress or completed, but not all completed)
+                else if (updatedSteps.some(s => s.status === "in-progress" || s.status === "completed") || task.status === "in-progress") {
+                  finalStatus = "in-progress";
+                  if (task.id === "2") {
+                    console.log(`[TaskContext] Task 2: Overall status = "running" (task active)`);
+                  }
+                }
+                // All steps are not-started
+                else {
+                  finalStatus = "not-started";
+                  if (task.id === "2") {
+                    console.log(`[TaskContext] Task 2: Overall status = "idle" (not started)`);
+                  }
+                }
+                
                 const updatedTask = {
                   ...task,
                   progress: finalProgress,
                   currentStep: progress.description || task.currentStep,
                   currentStepNumber: progress.current_step || task.currentStepNumber || 1,
                   totalSteps: totalStepsForProgress,
-                  status: progress.status,
+                  status: finalStatus,
                   steps: updatedSteps,
                 };
                 
@@ -359,8 +392,8 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 return updatedTask;
               }
               return task;
-            }),
-          );
+            });
+          });
         } catch (e) {
           console.error("[TaskContext] Failed to parse progress update:", e);
           console.error("[TaskContext] Raw message data:", message?.data);
