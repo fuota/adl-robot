@@ -1,9 +1,0 @@
-<launch>
-    <!-- Run your ROS task executor node -->
-    <node pkg="adl_robot" type="task_executor.py" name="task_executor" output="screen" />
-
-    <!-- (Optional) If you later want Flask inside ROS, you can launch it too -->
-    <!--
-    <node pkg="adl_robot" type="flask_server.py" name="flask_backend" output="screen" />
-    -->
-</launch>
