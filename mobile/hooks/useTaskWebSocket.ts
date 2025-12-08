@@ -55,22 +55,21 @@ export function useTaskWebSocket(taskId: string | undefined) {
               console.log('[WebSocket] Processing task step update:', update);
               
               // Emit event for DeviceEventEmitter (native) or window event (web)
+              // Include progressPercent if available
+              const eventData = {
+                taskId: update.taskId || taskId,
+                stepIndex: update.stepIndex,
+                action: update.action,
+                status: update.status || 'completed',
+                progressPercent: (update as any).progressPercent,
+              };
+              
               if (Platform.OS !== 'web') {
-                DeviceEventEmitter.emit('taskStepUpdate', {
-                  taskId: update.taskId || taskId,
-                  stepIndex: update.stepIndex,
-                  action: update.action,
-                  status: update.status || 'completed',
-                });
+                DeviceEventEmitter.emit('taskStepUpdate', eventData);
               } else {
                 // For web, dispatch custom event
                 const event = new CustomEvent('taskStepUpdate', {
-                  detail: {
-                    taskId: update.taskId || taskId,
-                    stepIndex: update.stepIndex,
-                    action: update.action,
-                    status: update.status || 'completed',
-                  },
+                  detail: eventData,
                 });
                 window.dispatchEvent(event);
               }
@@ -103,7 +102,14 @@ export function useTaskWebSocket(taskId: string | undefined) {
         }
       };
     } else {
-      // For native platforms or when Socket.IO is not available, use polling
+      // For native platforms: TaskContext already subscribes to ROS topic /task_progress
+      // So we don't need WebSocket or polling - just return early
+      if (Platform.OS !== 'web') {
+        console.log('[Task Updates] Native platform detected - TaskContext handles updates via ROS topic subscription');
+        return;
+      }
+      
+      // For web when Socket.IO is not available, use polling
       console.log('[Task Updates] Using polling fallback');
       let previousProgress = -1;
       
